@@ -1,0 +1,82 @@
+.\"First attempt at writing a man page"
+.Dd July 29, 2001
+.Dt SMEGMA 1
+.Os
+.Sh NAME
+.Nm smegma
+.Nd encoding engine for shellcode/machine code
+.Sh SYNOPSIS
+.Nm smegma
+.Ar filename 1 1
+.Sh DESCRIPTION
+.BR TEST
+blah
+.Sh i386 ASCII only encoding
+The i386_ascii.so module transforms any given i386 shellcode into ASCII only
+shellcode in the 0x21-0x7f (printable characters) range.
+The module uses several opcodes which will be in the mentioned range:
+
+.Bl -tag -width PUSH -compact
+.It 	SUB	eax, 32-bit immediate
+.It 	XOR	eax, 32-bit immediate
+.It 	AND	eax, 32-bit immediate
+.It 	PUSH	eax
+.It 	POP	eax
+.It 	POP	esp
+.It 	INC	eax
+.It 	DEC	eax
+.El
+
+Notice that the base register involved in making all tranformations is eax,
+although it might be possible to arbitrarely change this in order to increase
+randomness; POP esp is the only exception to this, and it's use will be
+discussed later.
+
+First of all the engine will set eax to 0 (although in order to increase
+randomness any combinations of instructions whose opcodes are in range and
+in the end store a known value in eax will do) using two AND instructions.
+
+Then it takes the original shellcode, pads it out with 0 bytes to a 4-byte
+boundary, and proceeds transmuting it in 4-byte chuncks in backwards order.
+Transmutation is managed by tuples of combinations of the previously mentioned
+instructions, with operands in the specified printable range.
+In order for this to work, we need at least one combination which is
+mathematically complete, and this can be proven for a 3-tuple of SUB
+instructions.
+For the sake of efficiency other tuples are used if possible, such as 2-tuple
+and 1-tuple SUB instructions, 2-tuple XOR/AND, AND/XOR, XOR/XOR, AND/AND,
+SUB/XOR, XOR/SUB instructions and so on. In the end this decreases the size
+of the encoded payload, and increases randomness.
+
+After forming a 4-byte value into register eax this way, eax is pushed on the
+stack after which the entire process continues with the one-but-last 4-byte
+chunck of the original payload and so on.
+
+Executing the encoded payload after this will form the original payload on
+the stack, with esp pointing directly to it. The problem which is faced now
+is that there is no straightforward way in which to jump to the decoded
+payload.
+The engine solves this problem by setting up esp a number of bytes equal to
+the size of the decoded payload past the return address used in the exploit,
+so that eip will intersect with esp after the last push, so that execution of
+the decoded payload will immediatly take place.
+There are three drawbacks to this technique. First of all if the encoded
+payload will end up within a number of bytes equal to a segment boundary, esp
+will end up pointing into non adressable memory space and the shellcode will
+fail. In practice it should be easy to avoid these situations.
+Secondly, since the return address is used in the calculation to form the
+value to store in esp, and the return address is only known at exploitation
+time, and NOT at encoding time, additional code is needed to split this
+value. Right now smegma uses the easiest way out, which is by dumping a stub
+using the mathematically complete splitTripleSub() routine to manage all this
+fuss.
+Last of all using nopping to increase the chance of hitting the payload in
+memory after the execution flow has been redirected is somewhat more
+difficult, since the calculation for the value to put in esp isn't correct.
+The way to solve this right now is by adding a number of 'n' nops to the
+front of the payload (pre-nopping) and 'n' nops to the end of the payload
+(post-nopping) and then increment the ENCODED_PAYLOAD_S definition in the
+stub by 'n'.
+
+.Sh AUTHOR
+Scrippie/ronald@grafix.nl

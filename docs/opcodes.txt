@@ -1,0 +1,85 @@
+
+ASCII only opcodes
+==================
+
+  Notes:
+	- The modR/M first two bits (mod field) are always set (equal to 3)
+	  when a destination register argument is used.
+	  These instructions are (sadly) useless to us.
+	- Excluded push/pusha/pop/popa use, due to modification of %esp, which
+	  could in circumstances end up in non-addressable memory space.
+
+	0x66	-> bits 16/32 operand switch prefix
+	0x67	-> bits 16/32 address switch prefix
+
+	AAA			0x37
+	AAS			0x3F
+	AND r/m16,reg16		o16 0x21 /r
+	AND r/m32,reg32		o32 0x21 /r
+	AND reg8,r/m8		0x22 /r
+	AND reg16,r/m16		o16 0x23 /r
+	AND reg32,r/m32		o32 0x23 /r
+	AND al,imm8		0x24 ib
+	AND ax,imm16		o16 0x25 iw
+	AND eax,imm32		o32 0x25 id
+	BOUND reg16,mem		o16 0x62 /r
+	BOUND reg32,mem		o32 0x62 /r
+	CMP r/m8,reg8		0x38 /r
+	CMP r/m16,reg16		o16 0x39 /r
+	CMP r/m32,reg32		o32 0x39 /r
+	CMP reg8,r/m8		0x3A /r
+	CMP reg16,r/m16		o16 0x3B /r
+	CMP reg32,r/m32		o32 0x3B /r
+	CMP al,imm8		0x3C ib
+	CMP ax,imm16		o16 0x3D iw
+	CMP eax,imm32		o32 0x3D id
+	DAA			0x27
+	DAS			0x2F
+	DEC reg16		o16 0x48+r
+	DEC reg32		o32 0x48+r
+	IMUL reg16,imm8		o16 0x6B /r ib
+	IMUL reg16,imm16	o16 0x69 /r iw
+	IMUL reg32,imm8		o32 0x6B /r ib
+	IMUL reg32,imm32	o32 0x69 /r id
+	IMUL reg16,r/m16,imm8	o16 0x6B /r ib
+	IMUL reg16,r/m16,imm16	o16 0x69 /r iw
+	IMUL reg32,r/m32,imm8	o32 0x6B /r ib
+	IMUL reg32,r/m32,imm32	o32 0x69 /r id
+	INC reg16		o16 0x40+r
+	INC reg32		o32 0x40+r
+	INSB			0x6C
+	INSW			o16 0x6D
+	INSD			o32 0x6D
+	Jcc imm			0x70+cc rb
+	OUTSB			0x6E
+	OUTSW			o16 0x6F
+	OUTSD			o32 0x6F
+	POP reg16		o16 0x58+r
+	POP reg32		o32 0x58+r
+	POPAW			o16 0x61
+	POPAD			o32 0x61
+	PUSH reg16		o16 0x50+r
+	PUSH reg32		o32 0x50+r
+	PUSH imm8		0x6A ib
+	PUSH imm16		o16 0x68 iw
+	PUSH imm32		o32 0x68 id
+	PUSHAW			o16 0x60
+	PUSHAD			o32 0x60
+	SUB r/m8,reg8		0x28 /r
+	SUB r/m16,reg16		o16 0x29 /r
+	SUB r/m32,reg32		o32 0x29 /r
+	SUB reg8,r/m8		0x2A /r
+	SUB reg16,r/m16		o16 0x2B /r
+	SUB reg32,r/m32		o32 0x2B /r
+	SUB al,imm8		0x2C ib
+	SUB ax,imm16		o16 0x2D iw
+	SUB eax,imm32		o32 0x2D id
+	XOR r/m8,reg8		0x30 /r
+	XOR r/m16,reg16		o16 0x31 /r
+	XOR r/m32,reg32		o32 0x31 /r
+	XOR reg8,r/m8		0x31 /r
+	XOR reg16,r/m16		o16 0x33 /r
+	XOR reg32,r/m32		o32 0x33 /r
+	XOR al,imm8		0x34 ib
+	XOR ax,imm16		o16 0x35 iw
+	XOR eax,imm32		o32 0x35 id
