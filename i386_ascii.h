@@ -1,6 +1,6 @@
 /* libaosc, an encoding library for randomized i386 ASCII-only shellcode.
  *
- * Dedicated to Merle Planten.
+ * Dedicated to Kanna Ishihara.
  *
  * Copyright (C) 2001-2008 Ronald Huizer
  *
@@ -22,6 +22,7 @@
 #define I386_ASCII_H
 
 #include <stdio.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include "rand.h"
 
@@ -38,6 +39,11 @@ typedef struct {
 	unsigned char byte1;
 	unsigned char byte2;
 } tuple_byte;
+
+typedef struct {
+	uint32_t dword1;
+	uint32_t dword2;
+} tuple_dword;
 
 typedef enum {
 	NONE,	AND,	SUB,	XOR
@@ -56,6 +62,8 @@ bool aos_split_double_xor(int, int *, int *);
 bool aos_split_double_sub(int, int *, int *);
 void aos_split_triple_sub(int, int *, int *, int *);
 operation_tuple_t *aos_and_zero_pair(void);
+tuple_dword aos_generate_and_zero_dwords(void);
+tuple_byte aos_generate_and_zero_bytes(void);
 
 #ifdef __cplusplus
   }
