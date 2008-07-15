@@ -1,8 +1,7 @@
-/* libaosc, an encoding library for randomized i386 ASCII-only shellcode.
+/* 
+ * Dedicated to Kanna Ishihara.
  *
- * Dedicated to Merle Planten.
- *
- * Copyright (C) 2001-2008 Ronald Huizer
+ * Copyright (C) 2006, 2007 Ronald Huizer
  *
  * This library is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as
@@ -20,37 +19,149 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
-#include "wrapper.h"
+#include <string.h>
+#include <unistd.h>
+#include <stdarg.h>
+#include <errno.h>
 
-FILE *xfopen(const char *path, const char *mode)
+#ifdef WRAPPER_NETINET
+#include <netinet/in.h>
+#endif
+
+int warning(const char *fmt, ...)
 {
-	FILE *ret;
+	int ret;
+	va_list ap;
 
-	if((ret = fopen(path, mode)) == NULL) {
-		perror("fopen()");
-		exit(EXIT_FAILURE);
-	}
-	return(ret);
+	va_start(ap, fmt);
+	ret = vfprintf(stderr, fmt, ap);
+	va_end(ap);
+
+	return ret;
 }
 
+void fatal(const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	vfprintf(stderr, fmt, ap);
+	va_end(ap);
+
+	exit(EXIT_FAILURE);
+}
+
+/* Sane malloc implementation which sleeps on ENOMEM for a few times using
+ * an exponential increase in sleep time.
+ */
 void *xmalloc(size_t size)
 {
-	void *ptr;
+	void *ret;
+	unsigned int i = 0, stime = 5;
 
-	if((ptr = malloc(size)) == NULL) {
-		perror("malloc()");
-		exit(EXIT_FAILURE);
+	/* Make sure realloc and malloc behave consistently. */
+	if (size == 0)
+		return NULL;
+
+	while ( (ret = malloc(size)) == NULL && i != 6) {
+		warning("wrapper.c: xmalloc() failed to allocate."
+			"Sleeping %u seconds.\n", stime);
+		sleep(stime);
+		stime *= 2, i++;
 	}
-	return(ptr);
+
+	if (ret == NULL)
+		fatal("wrapper.c: xmalloc() failed to allocate. Aborting.\n");
+
+	return ret;
 }
 
+/* Sane realloc() function */
 void *xrealloc(void *ptr, size_t size)
 {
-	void *ptr2;
+	void *ret;
+	unsigned int i = 0, stime = 5;
 
-	if( (ptr2 = realloc(ptr, size)) == NULL && size != 0) {
-		perror("realloc()");
-		exit(EXIT_FAILURE);
+	/* Make sure realloc and malloc behave consistently. */
+	if (size == 0) {
+		free(ptr);
+		return NULL;
 	}
-	return(ptr2);
+
+	while ( (ret = realloc(ptr, size)) == NULL && i != 6) {
+		warning("wrapper.c: xrealloc() failed to allocate."
+			"Sleeping %u seconds.\n", stime);
+		sleep(stime);
+		stime *= 2, i++;
+	}
+
+	if (ret == NULL)
+		fatal("wrapper.c: xrealloc() failed to allocate. Aborting.\n");
+
+	return ret;
 }
+
+void xfree(void *ptr)
+{
+	if (ptr != NULL)
+		free(ptr);
+}
+
+int xfclose(FILE *fp)
+{
+	while ( fclose(fp) != 0 ) {
+		if (errno == EINTR)
+			continue;
+		fatal("wrapper.c: xfclose() failed: %s\n", strerror(errno));
+	}
+
+	return 0;
+}
+
+#ifdef WRAPPER_NETINET
+
+int xsocket(int domain, int type, int protocol)
+{
+	int ret;
+
+	ret = socket(domain, type, protocol);
+	if (ret == -1)
+		fatal("wrapper.c: xsocket() failed: %s\n", strerror(errno));
+	
+	return ret;
+}
+
+int xbind(int sockfd, const struct sockaddr *my_addr, socklen_t addrlen)
+{
+	int ret;
+
+	ret = bind(sockfd, my_addr, addrlen);
+	if (ret == -1)
+		fatal("wrapper.c: xbind() failed: %s\n", strerror(errno));
+
+	return ret;
+}
+
+int xlisten(int sockfd, int backlog)
+{
+	int ret;
+
+	ret = listen(sockfd, backlog);
+	if (ret == -1)
+		fatal("wrapper.c: xlisten() failed: %s\n", strerror(errno));
+
+	return ret;
+}
+
+int xaccept(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
+{
+	int ret;
+
+	ret = accept(sockfd, addr, addrlen);
+	if (ret == -1 && errno != EINTR)
+		fatal("wrapper.c: xaccept() failed: %s\n", strerror(errno));
+
+	return ret;
+}
+
+#endif

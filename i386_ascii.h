@@ -1,6 +1,6 @@
 /* libaosc, an encoding library for randomized i386 ASCII-only shellcode.
  *
- * Dedicated to Kanna Ishihara.
+ * Dedicated to Merle Planten.
  *
  * Copyright (C) 2001-2008 Ronald Huizer
  *
@@ -22,8 +22,9 @@
 #define I386_ASCII_H
 
 #include <stdio.h>
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
+#include "string.h"
 #include "rand.h"
 
 #ifdef __cplusplus
@@ -55,7 +56,7 @@ typedef struct {
 } operation_tuple_t;
 
 shellcode_t aos_encode_safe(shellcode_t, void *, unsigned int);
-shellcode_t aos_encode(shellcode_t, void *, unsigned int);
+struct string *aos_encode(struct string *, shellcode_t, void *, unsigned int);
 operation_tuple_t *aos_encode_dword(unsigned int, unsigned int);
 void aos_print_operation_tuple(operation_tuple_t);
 bool aos_split_double_xor(int, int *, int *);

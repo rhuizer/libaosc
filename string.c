@@ -1,6 +1,6 @@
 /* libaosc, an encoding library for randomized i386 ASCII-only shellcode.
  *
- * Dedicated to Merle Planten.
+ * Dedicated to Kanna Ishihara.
  *
  * Copyright (C) 2001-2008 Ronald Huizer
  *
@@ -22,75 +22,133 @@
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
-#include "wrapper.h"
-#include "strings.h"
+#include "string.h"
 
-char *str_prepend_char(char *s, char c, unsigned int num)
+VECTOR_DEFINE(char, char);
+
+struct string *
+string_init(struct string *string)
 {
-	char *ptr;
-	unsigned int i;
-
-	ptr = xmalloc(strlen(s) + num + 1);
-	for(i = 0; i < num; i++)
-		*(ptr + i) = c;
-	strcpy(ptr + i, s);
-	free(s);
-
-	return ptr;
+	vector_char_init(&string->data);
+	return string;
 }
 
-char *str_append_char(char *s, char c, unsigned int num)
+void
+string_destroy(struct string *string)
 {
-	char *ptr;
-	unsigned int i;
-	size_t size;
-
-	size = strlen(s);
-	s = xrealloc(s, (size + num + 1) * sizeof(char));
-	ptr = s + size;
-
-	for(i = 0; i < num; i++)
-		*ptr++ = c;
-	*ptr = 0;
-
-	return s;
+	vector_char_destroy(&string->data);
 }
 
-char *str_prepend_str(char *s, char *p, unsigned int num)
+struct string *
+string_set(struct string *string, const char *value)
 {
-	char *ptr;
-	size_t size;
-	unsigned int i;
+	vector_char_destroy(&string->data);
+	vector_char_init(&string->data);
+	vector_char_add(&string->data, value, strlen(value));
 
-	size = strlen(s) + strlen(p) * num + 1;
-	*(ptr = xmalloc(size * sizeof(char))) = 0;
-
-	for(i = 0; i < num; i++)
-		strcat(ptr, p);
-	strcat(ptr, s);
-
-	free(s);
-	return ptr;
+	return string;
 }
 
-/*
- *  Deletes a trailing "\r\n" or a trailing "\n" if found
- */
-
-char *str_chomp(char *str)
+size_t
+string_get_length(struct string *string)
 {
-	size_t len;
+	return vector_char_get_size(&string->data);
+}
 
-	if( (len = strlen(str)) == 0)
-		return str;
+char *
+string_get_data(struct string *string)
+{
+	return (char *) string->data.data + string->data.start;
+}
 
-	if(str[len-1] == '\n') {
-		if(len > 1 && str[len-2] == '\r') str[len-2] = 0;
-		else str[len-1] = 0;
+struct string *
+string_char_insert(struct string *string, unsigned int index,
+                   char c, unsigned int num)
+{
+	unsigned int i;
+
+	if ( vector_char_create_gap(&string->data, index, num) == NULL )
+		return NULL;
+
+	/* We don't need to check for an addition overflow here, as it is
+	 * tested internally by vector_char_create_grap() which would
+	 * return NULL.
+	 */
+	for (i = index; i < index + num; i++)
+		vector_char_set_element(&string->data, i, c);
+
+	return string;
+}
+
+struct string *
+string_char_prepend(struct string *string, char c, unsigned int num)
+{
+	return string_char_insert(string, 0, c, num);
+}
+
+struct string *
+string_char_append(struct string *string, char c, unsigned int num)
+{
+	return string_char_insert(string,
+	                          vector_char_get_size(&string->data),
+				  c, num);
+}
+
+struct string *
+string_insert(struct string *string, unsigned int index, char *p, size_t len)
+{
+	unsigned long i;
+
+	if ( vector_char_create_gap(&string->data, index, len) == NULL )
+		return NULL;
+
+	for (i = index; i < index + len; i++)
+		vector_char_set_element(&string->data, i, p[i - index]);
+
+	return string;
+}
+
+struct string *
+string_prepend(struct string *string, char *p, size_t len)
+{
+	return string_insert(string, 0, p, len);
+}
+
+struct string *
+string_append(struct string *string, char *p, size_t len)
+{
+	return string_insert(string,
+	                     vector_char_get_size(&string->data), p, len);
+}
+
+struct string *
+string_chomp(struct string *string)
+{
+	size_t len = vector_char_get_size(&string->data);
+
+	if (len == 0)
+		return string;
+
+	if ( vector_char_get_element(&string->data, len - 1) == '\n' ) {
+		if (len > 1 && 
+		    vector_char_get_element(&string->data, len - 2) == '\r') {
+			string->data.end -= 2;
+		} else {
+			string->data.end--;
+		}
 	}
-	return(str);
+
+	return string;
 }
 
+int
+string_print(struct string *string)
+{
+	return printf("%.*s", vector_char_get_size(&string->data),
+	                      vector_char_get_element_ptr(&string->data, 0));
+}
+
+#if 0
 /*
  *  Delete any of the characters in 'set' from the start of 'str'
  */
@@ -201,3 +259,21 @@ int str_case_cmp(const char *line1, const char *line2)
 			return(0);
 	return(1);
 }
+
+
+int main(void)
+{
+	struct string s;
+
+	string_init(&s);
+	string_set(&s, "foobarbaz\r\n");
+
+	string_chomp(&s);
+	string_char_prepend(&s, 'A', 10);
+
+	string_print(&s);
+	printf("\n");
+
+	string_destroy(&s);
+}
+#endif

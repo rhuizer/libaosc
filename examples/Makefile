@@ -1,7 +1,7 @@
 CC	= gcc
 CFLAGS	= -Wall -ggdb -I ../ -I /opt/libemu/include
 TARGETS	= exec_sh_test
-LIBS	= -laosc
+LIBS	= -laosc -lm
 
 .c.o:;
 	$(CC) $(CFLAGS) -c -o $@ $^

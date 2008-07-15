@@ -1,9 +1,9 @@
 AR     = ar
 CC     = gcc
 RANLIB = ranlib
-CFLAGS = -Wall -O2 -s
+CFLAGS = -Wall -ggdb -s
 TARGET = libaosc.a
-FILES  = i386_ascii.o i386_nops.o wrapper.o strings.o stack.o \
+FILES  = i386_ascii.o i386_nops.o wrapper.o string.o \
 	 mt19937.o rand.o
 
 .c.o:;

@@ -26,7 +26,7 @@
 #include <unistd.h>
 #include "i386_ascii.h"
 #include "i386_nops.h"
-#include "strings.h"
+#include "string.h"
 #include "wrapper.h"
 #include "rand.h"
 
@@ -41,6 +41,7 @@
 /*
  * aos_encode() wrapper to make shellcode 'close to segment boundary safe'
  */
+/*
 shellcode_t aos_encode_safe(shellcode_t s, void *ra, unsigned int nops)
 {
 	unsigned int j;
@@ -56,97 +57,94 @@ shellcode_t aos_encode_safe(shellcode_t s, void *ra, unsigned int nops)
 	}
 	return foo;
 }
+*/
 
-shellcode_t aos_encode(shellcode_t input_code, void *ra, unsigned int nops)
+struct string *
+aos_encode(struct string *dest, shellcode_t input_code, void *ra, unsigned int nops)
 {
 	int base, i, j = 0, k;
 	int *ret_addy_stuffer[3];
+	unsigned int backpatch_index;
 	uint32_t __ra = (uint32_t) ra;
 	operation_tuple_t *operations;
 	tuple_dword and_values;
-	shellcode_t padded_code, garbled_code;
+	int a, b, c;
+	struct string code_padded;
 
 	xrandom_init();
+	string_init(&code_padded);
+	string_init(dest);
 
-	/*
-	 * We pad out the existing shellcode to a 4 byte boundary
+	/* We pad out the existing shellcode to a 4 byte boundary
 	 * Additionaly, we prefix with 4 A's, as to avoid post-nopping
 	 * misalignment issues when the decoded payload ends up in the operand
 	 * to a multi-byte instruction, and EIP increments after the first
 	 * byte of the decoded payload
 	 */
-	padded_code.size = input_code.size + ALIGN(input_code.size, 4) + 4;
-	padded_code.shellcode = (unsigned char *) xmalloc(padded_code.size);
-	strcpy((char *) padded_code.shellcode, "AAAA");
-	memcpy(padded_code.shellcode + sizeof("AAAA") - 1,
-					input_code.shellcode, input_code.size);
+	string_set(&code_padded, "AAAA");
+	string_append(&code_padded, (char *) input_code.shellcode, input_code.size);
+	string_char_append(&code_padded, 'A', ALIGN(input_code.size, 4));
 
-	/*
-	 * Worst case estimate of the ASCII only shellcode
+	/* Worst case estimate of the ASCII only shellcode
 	 * Every dword of padded_code is translated to a maximum of 3 dwords
 	 * with a byte-opcode maximum of 3 operators and 1 push, implying
 	 * that each dword swells to at most 4 dwords.
 	 */
-	garbled_code.size = (padded_code.size * 4 + 37) + nops * 2;
-	garbled_code.shellcode = (unsigned char *)xmalloc(garbled_code.size+1);
+//	garbled_code.size = (padded_code.size * 4 + 37) + nops * 2;
+//	garbled_code.shellcode = (unsigned char *)xmalloc(garbled_code.size+1);
 
-	/*
-	 * Adding pre-nopping with random i386 ASCII only (n)opcodes
+	
+	/* Adding pre-nopping with random i386 ASCII only (n)opcodes
 	 */
 	aos_nop_engine_init();
 	for(i = 0; i < nops; i++)
-		garbled_code.shellcode[j++] =
-					stateful_random_safe_opcode(nops);
+		string_char_append(dest,
+		                   stateful_random_safe_opcode(nops), 1);
 
-	/*
-	 * Create ASCII only i386 instructions to set eax to 0
+	/* Create ASCII only i386 instructions to set eax to 0
 	 */
 	and_values = aos_generate_and_zero_dwords();
-	garbled_code.shellcode[j++] = ANDI_EAX;
-	memcpy(&garbled_code.shellcode[j], &and_values.dword1, 4), j += 4;
-	garbled_code.shellcode[j++] = ANDI_EAX;
-	memcpy(&garbled_code.shellcode[j], &and_values.dword2, 4), j += 4;
+	string_char_append(dest, ANDI_EAX, 1);
+	string_append(dest, (char *) &and_values.dword1, 4);
+	string_char_append(dest, ANDI_EAX, 1);
+	string_append(dest, (char *) &and_values.dword2, 4);
 
-	/*
-	 * Create Triple i386 Sub placeholders for return address handling
+
+	/* Create Triple i386 Sub placeholders for return address handling
 	 */
-	for(i = 0; i < 3; i++, j+=4) {
-		garbled_code.shellcode[j++] = SUBI_EAX;
+	backpatch_index = string_get_length(dest);
+/*	for(i = 0; i < 3; i++, j+=4) {
+		string_append_char(&dest, SUBI_EAX, 1);
 		ret_addy_stuffer[i] = (int *)&garbled_code.shellcode[j];
 	}
-	garbled_code.shellcode[j++] = PUSH + EAX;
-	garbled_code.shellcode[j++] = POP + ESP;
+*/
+	string_char_append(dest, PUSH + EAX, 1);
+	string_char_append(dest, POP + ESP, 1);
 
-	/*
-	 * Set eax to 0 once more
+	/* Set eax to 0 once more
 	 * XXX: can be evaded if somehow we can fill in the size of the
 	 * AO shellcode before encoding, so that return address encoding
 	 * needs not be done after everything else.
 	 */
 	and_values = aos_generate_and_zero_dwords();
-	garbled_code.shellcode[j++] = ANDI_EAX;
-	memcpy(&garbled_code.shellcode[j], &and_values.dword1, 4), j += 4;
-	garbled_code.shellcode[j++] = ANDI_EAX;
-	memcpy(&garbled_code.shellcode[j], &and_values.dword2, 4), j += 4;
+	string_char_append(dest, ANDI_EAX, 1);
+	string_append(dest, (char *) &and_values.dword1, 4);
+	string_char_append(dest, ANDI_EAX, 1);
+	string_append(dest, (char *) &and_values.dword2, 4);
 
-	/*
-	 * Encode the padded shellcode
-	 */
-	for(base = 0, i = padded_code.size / 4 - 1; i >= 0; i--) {
+	/* Encode the padded shellcode. */
+	for(base = 0, i = string_get_length(&code_padded) / 4 - 1; i >= 0; i--) {
 		operations = aos_encode_dword(base,
-					((int *)padded_code.shellcode)[i]);
-		base = ((int *)padded_code.shellcode)[i];
+			((uint32_t *)string_get_data(&code_padded))[i]);
+		base = ((uint32_t *)string_get_data(&code_padded))[i];
 
-		for(k = 0; k < 3; k++, j+=4) {
-			if(operations[k].op == NONE) {
-				garbled_code.size -= ((3 - k) * 5);
+		for(k = 0; k < 3; k++) {
+			if(operations[k].op == NONE)
 				break;
-			}
-			garbled_code.shellcode[j++] = SUBI_EAX;
-			memcpy(&garbled_code.shellcode[j],
-						&operations[k].value, 4);
+			string_char_append(dest, SUBI_EAX, 1);
+			string_append(dest, (char *) &operations[k].value, 4);
 		}
-		garbled_code.shellcode[j++] = PUSH + EAX;
+		string_char_append(dest, PUSH + EAX, 1);
 		free(operations);
 	}
 
@@ -155,21 +153,25 @@ shellcode_t aos_encode(shellcode_t input_code, void *ra, unsigned int nops)
 	 */
 	aos_nop_engine_init();
 	for(i = 0; i < nops; i++)
-		garbled_code.shellcode[j++] = aos_random_post_nop();
-	garbled_code.shellcode[j] = 0;
+		string_char_append(dest, aos_random_post_nop(), 1);
 
-	/*
-	 * Fill in the return address placeholders.
+	/* Fill in the return address placeholders.
 	 * NOTE: we SUBTRACT 'nops' since it got added twice to
 	 *       garbled_code.size
 	 */
 	aos_split_triple_sub(
-		0 - (__ra + padded_code.size + garbled_code.size - nops),
-		ret_addy_stuffer[0], ret_addy_stuffer[1], ret_addy_stuffer[2]
+		0 - (__ra + string_get_length(&code_padded) + string_get_length(dest) - nops),
+		&a, &b, &c
 	);
+	string_insert(dest, backpatch_index, (char *) &c, 4);
+	string_char_insert(dest, backpatch_index, SUBI_EAX, 1);
+	string_insert(dest, backpatch_index, (char *) &b, 4);
+	string_char_insert(dest, backpatch_index, SUBI_EAX, 1);
+	string_insert(dest, backpatch_index, (char *) &a, 4);
+	string_char_insert(dest, backpatch_index, SUBI_EAX, 1);
 
-	free(padded_code.shellcode);
-	return(garbled_code);
+	string_destroy(&code_padded);
+	return dest;
 }
 
 /*

