@@ -1,6 +1,6 @@
 /* libaosc, an encoding library for randomized i386 ASCII-only shellcode.
  *
- * Dedicated to Merle Planten.
+ * Dedicated to Kanna Ishihara.
  *
  * Copyright (C) 2001-2008 Ronald Huizer
  *
@@ -20,28 +20,60 @@
  */
 #include <assert.h>
 #include <stdio.h>
-#include <stdlib.h>
+#include <string.h>
+#include <inttypes.h>
+#include <unistd.h>
 #include <time.h>
-#include <limits.h>
 #include "mt19937.h"
 #include "rand.h"
 
-unsigned int xrandom_set(unsigned int *s, unsigned int l) {
-	return s[xrandom_range(0, l - 1)];
-}
-
-unsigned int xrandom_uint(void) {
-	return genrand();
-}
-
-void xrandom_init(void) {
-	sgenrand(time(NULL));
-}
-
-/*
- * Return a random value from the range [l, h]
- */
-unsigned int xrandom_range(unsigned int l, unsigned int h)
+void
+rand_init(void)
 {
-	return (xrandom_uint() % (h - l + 1)) + l;
+	init_genrand( time(NULL) + getpid() );
+}
+
+/*  Generates a random number mod-n in an unbiased way.
+ *  Simply generate a random number which is the biggest possible multiple
+ *  of 'n' by discarding unfit results, and return this mod-n.
+ */
+uint32_t
+rand_uint32_mod(uint32_t mod)
+{
+	uint32_t rmod, rnd;
+
+	if (!mod)
+		return rand_uint32();
+
+	rmod = ( (-mod) / mod + 1) * mod;
+
+	do {
+		rnd = rand_uint32();
+	} while (rmod && rnd >= rmod);
+
+	return rnd % mod;
+}
+
+/*  Generate a secure random number using aes_random(), and selecting
+ *  only numbers in the given range [lo, hi]
+ *  Tosses away results to compensate for the bias mod-n arithmetic
+ *  introduces when n is not a power of 2.
+ */
+uint32_t
+rand_uint32_range(uint32_t lo, uint32_t hi)
+{
+	return rand_uint32_mod(hi - lo + 1) + lo;
+}
+
+/*  Generate a secure random number using aes_random() quickly, bumping the
+ *  result in range [lo, hi].
+ *  This uses only mod-n arithmetic and therefore this function !!IS BIASED!!
+ *  when n is not a power of 2.
+ *  Use for quick random number generation where the mod-n bias can be
+ *  safely ignored.
+ */
+uint32_t
+rand_uint32_range_fast(uint32_t lo, uint32_t hi)
+{
+	return (rand_uint32() % (hi - lo + 1)) + lo;
 }

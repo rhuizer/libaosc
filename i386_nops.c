@@ -144,7 +144,7 @@ unsigned char stateful_random_safe_opcode(unsigned int nops)
 	}
 
 	do {
-		i = instr[xrandom_range(0, instructions - 1)];
+		i = instr[rand_uint32_range(0, instructions - 1)];
 	} while(space < i.size || (UNSAFE(i) && !safe_unsafe_instr(i, nops)));
 	curlen++;
 
@@ -255,7 +255,7 @@ inline i386_instruction_t aos_random_nop(i386_iset l)
 {
 	assert(l.s != 0);
 
-	return l.i[xrandom_range(0, l.s - 1)];
+	return l.i[rand_uint32_range(0, l.s - 1)];
 }
 
 /*

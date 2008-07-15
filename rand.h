@@ -1,6 +1,6 @@
 /* libaosc, an encoding library for randomized i386 ASCII-only shellcode.
  *
- * Dedicated to Merle Planten.
+ * Dedicated to Kanna Ishihara.
  *
  * Copyright (C) 2001-2008 Ronald Huizer
  *
@@ -21,11 +21,9 @@
 #ifndef __RAND_H
 #define __RAND_H
 
-#define BITS_IN_BYTE	(8)
-#define BITS_IN_UINT	(sizeof(unsigned int) * BITS_IN_BYTE)
+void rand_init(void);
 
-unsigned int xrandom_uint(void);
-void xrandom_init(void);
-unsigned int xrandom_range(unsigned int, unsigned int);
+unsigned int rand_uint32(void);
+unsigned int rand_uint32_range(unsigned int, unsigned int);
 
 #endif

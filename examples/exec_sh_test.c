@@ -48,10 +48,10 @@ int main(void)
 		exit(EXIT_FAILURE);
 	}
 
-	xrandom_init();
-	numnops = xrandom_range(0, 1000);
-	foo = xrandom_range(0, numnops);
-	bar = xrandom_range(0, numnops);
+	rand_init();
+	numnops = rand_uint32_range(0, 1000);
+	foo = rand_uint32_range(0, numnops);
+	bar = rand_uint32_range(0, numnops);
 
 	code.shellcode = shellcode;
 	code.size = sizeof(shellcode) - 1;

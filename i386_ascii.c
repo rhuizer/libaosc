@@ -71,7 +71,7 @@ aos_encode(struct string *dest, shellcode_t input_code, void *ra, unsigned int n
 	int a, b, c;
 	struct string code_padded;
 
-	xrandom_init();
+	rand_init();
 	string_init(&code_padded);
 	string_init(dest);
 
@@ -85,39 +85,21 @@ aos_encode(struct string *dest, shellcode_t input_code, void *ra, unsigned int n
 	string_append(&code_padded, (char *) input_code.shellcode, input_code.size);
 	string_char_append(&code_padded, 'A', ALIGN(input_code.size, 4));
 
-	/* Worst case estimate of the ASCII only shellcode
-	 * Every dword of padded_code is translated to a maximum of 3 dwords
-	 * with a byte-opcode maximum of 3 operators and 1 push, implying
-	 * that each dword swells to at most 4 dwords.
-	 */
-//	garbled_code.size = (padded_code.size * 4 + 37) + nops * 2;
-//	garbled_code.shellcode = (unsigned char *)xmalloc(garbled_code.size+1);
-
-	
-	/* Adding pre-nopping with random i386 ASCII only (n)opcodes
-	 */
+	/* Adding pre-nopping with random i386 ASCII only (n)opcodes. */
 	aos_nop_engine_init();
 	for(i = 0; i < nops; i++)
 		string_char_append(dest,
 		                   stateful_random_safe_opcode(nops), 1);
 
-	/* Create ASCII only i386 instructions to set eax to 0
-	 */
+	/* Create ASCII only i386 instructions to set eax to 0. */
 	and_values = aos_generate_and_zero_dwords();
 	string_char_append(dest, ANDI_EAX, 1);
 	string_append(dest, (char *) &and_values.dword1, 4);
 	string_char_append(dest, ANDI_EAX, 1);
 	string_append(dest, (char *) &and_values.dword2, 4);
 
-
-	/* Create Triple i386 Sub placeholders for return address handling
-	 */
+	/* At this point we want to backpatch values for setting %esp. */
 	backpatch_index = string_get_length(dest);
-/*	for(i = 0; i < 3; i++, j+=4) {
-		string_append_char(&dest, SUBI_EAX, 1);
-		ret_addy_stuffer[i] = (int *)&garbled_code.shellcode[j];
-	}
-*/
 	string_char_append(dest, PUSH + EAX, 1);
 	string_char_append(dest, POP + ESP, 1);
 
@@ -148,9 +130,8 @@ aos_encode(struct string *dest, shellcode_t input_code, void *ra, unsigned int n
 		free(operations);
 	}
 
-	/*
-	 * Adding post-nopping with random i386 ASCII only (n)opcodes
-	 */
+
+	/* Adding post-nopping with random i386 ASCII only (n)opcodes. */
 	aos_nop_engine_init();
 	for(i = 0; i < nops; i++)
 		string_char_append(dest, aos_random_post_nop(), 1);
@@ -174,14 +155,13 @@ aos_encode(struct string *dest, shellcode_t input_code, void *ra, unsigned int n
 	return dest;
 }
 
-/*
- *  This routine manages the encoding of one 32-bit dword in n-ary tuples
+
+/*  This routine manages the encoding of one 32-bit dword in n-ary tuples
  *  of sub/xor/and combinations using bytes in the range of 0x20 to 0x7F,
  *  where 'n' will vary between 1 and 3.
  *  A 3-ary tuple of sub operations using 0x20-0x7F operands is mathematically
  *  complete for what we want to do.
  */
-
 operation_tuple_t *aos_encode_dword(unsigned int base, unsigned int val)
 {
 	operation_tuple_t *operations;
@@ -249,7 +229,7 @@ bool aos_split_double_sub(int value, int *a, int *b)
 		max = MAX(RANGE_MIN, one_byte - RANGE_MAX);
 		min = MIN(RANGE_MAX, one_byte - RANGE_MIN);
 
-		x = xrandom_range(max, min);
+		x = rand_uint32_range(max, min);
 		one_byte -= x;
 
 		*a = (*a * 0x100) + x;
@@ -280,12 +260,12 @@ void aos_split_triple_sub(int value, int *a, int *b, int *c)
 		max = MAX(RANGE_MIN, one_byte - RANGE_MAX * 2);
 		min = MIN(RANGE_MAX, one_byte - RANGE_MIN * 2);
 
-		x = xrandom_range(max, min);
+		x = rand_uint32_range(max, min);
 		one_byte -= x;
 
 		max = MAX(RANGE_MIN, one_byte - RANGE_MAX);
 		min = MIN(RANGE_MAX, one_byte - RANGE_MIN);
-		y = xrandom_range(max, min);
+		y = rand_uint32_range(max, min);
 		one_byte -= y;
 
 		*a += (x * m);
@@ -300,8 +280,7 @@ void aos_split_triple_sub(int value, int *a, int *b, int *c)
 	}
 }
 
-/*
- *  Returns an operation tuple array of 2 which contains AND pairs which
+/*  Returns an operation tuple array of 2 which contains AND pairs which
  *  always evaluate to 0
  */
 tuple_dword aos_generate_and_zero_dwords(void)
@@ -323,12 +302,12 @@ tuple_byte aos_generate_and_zero_bytes(void)
 {
 	tuple_byte pair;
 
-	if ( xrandom_range(1, 255) <= 127 ) {
-		pair.byte1 = 0x20 | xrandom_range(1, 0x1F);
-		pair.byte2 = 0x40 | (xrandom_range(0, 0x1F) & ~pair.byte1);
+	if ( rand_uint32_range(1, 255) <= 127 ) {
+		pair.byte1 = 0x20 | rand_uint32_range(1, 0x1F);
+		pair.byte2 = 0x40 | (rand_uint32_range(0, 0x1F) & ~pair.byte1);
 	} else {
-		pair.byte1 = 0x40 | xrandom_range(0, 0x1F);
-		pair.byte2 = 0x20 | (xrandom_range(1, 0x1F) & ~pair.byte1);
+		pair.byte1 = 0x40 | rand_uint32_range(0, 0x1F);
+		pair.byte2 = 0x20 | (rand_uint32_range(1, 0x1F) & ~pair.byte1);
 	}
 
 	return pair;
