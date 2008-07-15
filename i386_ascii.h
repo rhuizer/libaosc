@@ -1,6 +1,6 @@
 /* libaosc, an encoding library for randomized i386 ASCII-only shellcode.
  *
- * Dedicated to Merle Planten.
+ * Dedicated to Kanna Ishihara.
  *
  * Copyright (C) 2001-2008 Ronald Huizer
  *
@@ -31,21 +31,6 @@
   extern "C" {
 #endif
 
-typedef struct {
-	unsigned char *shellcode;
-	size_t size;
-} shellcode_t;
-
-typedef struct {
-	unsigned char byte1;
-	unsigned char byte2;
-} tuple_byte;
-
-typedef struct {
-	uint32_t dword1;
-	uint32_t dword2;
-} tuple_dword;
-
 typedef enum {
 	NONE,	AND,	SUB,	XOR
 } operation_t;
@@ -55,16 +40,17 @@ typedef struct {
 	int value;
 } operation_tuple_t;
 
-shellcode_t aos_encode_safe(shellcode_t, void *, unsigned int);
-struct string *aos_encode(struct string *, shellcode_t, void *, unsigned int);
+struct string *aos_encode_safe(struct string *, void *, size_t, void *, unsigned int);
+struct string *aos_encode(struct string *, void *, size_t, void *, unsigned int);
 operation_tuple_t *aos_encode_dword(unsigned int, unsigned int);
 void aos_print_operation_tuple(operation_tuple_t);
 bool aos_split_double_xor(int, int *, int *);
 bool aos_split_double_sub(int, int *, int *);
 void aos_split_triple_sub(int, int *, int *, int *);
 operation_tuple_t *aos_and_zero_pair(void);
-tuple_dword aos_generate_and_zero_dwords(void);
-tuple_byte aos_generate_and_zero_bytes(void);
+
+void aos_generate_and_zero_dwords(uint32_t *, uint32_t *);
+void aos_generate_and_zero_bytes(uint8_t *, uint8_t *);
 
 #ifdef __cplusplus
   }

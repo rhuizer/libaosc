@@ -38,7 +38,6 @@ int main(void)
 {
 	unsigned char *ret_addy;
 	struct string ascii_code;
-	shellcode_t code;
 	unsigned int foo, bar, numnops;
 
 	ret_addy = mmap(NULL, 31337, PROT_READ | PROT_WRITE | PROT_EXEC,
@@ -53,13 +52,11 @@ int main(void)
 	foo = rand_uint32_range(0, numnops);
 	bar = rand_uint32_range(0, numnops);
 
-	code.shellcode = shellcode;
-	code.size = sizeof(shellcode) - 1;
-
 	/* aos_encode() the shellcode code, with a return address of
 	 * 'ret_addy' and use NUMNOPS nops
 	 */
-	aos_encode(&ascii_code, code, ret_addy + foo, numnops);
+	aos_encode_safe(&ascii_code, shellcode, sizeof(shellcode) - 1,
+	                ret_addy + foo, numnops);
 
 	printf("Executing shellcode:\n\n");
 	string_print(&ascii_code);

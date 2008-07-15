@@ -38,37 +38,34 @@
 #define MAX(a, b)	(((a) > (b)) ? (a) : (b))
 #define MIN(a, b)	(((a) < (b)) ? (a) : (b))
 
-/*
- * aos_encode() wrapper to make shellcode 'close to segment boundary safe'
+/* aos_encode() wrapper to make shellcode 'close to segment boundary safe'
  */
-/*
-shellcode_t aos_encode_safe(shellcode_t s, void *ra, unsigned int nops)
+struct string *
+aos_encode_safe(struct string *dest, void *src, size_t n,
+                void *ra, unsigned int nops)
 {
 	unsigned int j;
-	shellcode_t foo;
+	unsigned int n_aligned = n + ALIGN(n, 4) + 4;
 	
-	foo = aos_encode(s, ra, nops);
+	aos_encode(dest, src, n, ra, nops);
 
-	for(j = 0; j < s.size + ALIGN(s.size, 4) + 4; j++) {
-		foo.shellcode = (unsigned char *)
-			str_append_char((char *)foo.shellcode,
-		                (char)xrandom_range(0x21, 0x7e), 1);
-		foo.size++;
-	}
-	return foo;
+	for(j = 0; j < n_aligned; j++)
+		string_char_append(dest, rand_uint32_range(0x21, 0x7e), 1);
+
+	return dest;
 }
-*/
 
 struct string *
-aos_encode(struct string *dest, shellcode_t input_code, void *ra, unsigned int nops)
+aos_encode(struct string *dest, void *src, size_t n,
+           void *ra, unsigned int nops)
 {
 	int base, i, j = 0, k;
 	int *ret_addy_stuffer[3];
 	unsigned int backpatch_index;
 	uint32_t __ra = (uint32_t) ra;
 	operation_tuple_t *operations;
-	tuple_dword and_values;
 	int a, b, c;
+	uint32_t dword1, dword2;
 	struct string code_padded;
 
 	rand_init();
@@ -82,8 +79,8 @@ aos_encode(struct string *dest, shellcode_t input_code, void *ra, unsigned int n
 	 * byte of the decoded payload
 	 */
 	string_set(&code_padded, "AAAA");
-	string_append(&code_padded, (char *) input_code.shellcode, input_code.size);
-	string_char_append(&code_padded, 'A', ALIGN(input_code.size, 4));
+	string_append(&code_padded, src, n);
+	string_char_append(&code_padded, 'A', ALIGN(n, 4));
 
 	/* Adding pre-nopping with random i386 ASCII only (n)opcodes. */
 	aos_nop_engine_init();
@@ -92,11 +89,11 @@ aos_encode(struct string *dest, shellcode_t input_code, void *ra, unsigned int n
 		                   stateful_random_safe_opcode(nops), 1);
 
 	/* Create ASCII only i386 instructions to set eax to 0. */
-	and_values = aos_generate_and_zero_dwords();
+	aos_generate_and_zero_dwords(&dword1, &dword2);
 	string_char_append(dest, ANDI_EAX, 1);
-	string_append(dest, (char *) &and_values.dword1, 4);
+	string_append(dest, (char *) &dword1, 4);
 	string_char_append(dest, ANDI_EAX, 1);
-	string_append(dest, (char *) &and_values.dword2, 4);
+	string_append(dest, (char *) &dword2, 4);
 
 	/* At this point we want to backpatch values for setting %esp. */
 	backpatch_index = string_get_length(dest);
@@ -108,11 +105,11 @@ aos_encode(struct string *dest, shellcode_t input_code, void *ra, unsigned int n
 	 * AO shellcode before encoding, so that return address encoding
 	 * needs not be done after everything else.
 	 */
-	and_values = aos_generate_and_zero_dwords();
+	aos_generate_and_zero_dwords(&dword1, &dword2);
 	string_char_append(dest, ANDI_EAX, 1);
-	string_append(dest, (char *) &and_values.dword1, 4);
+	string_append(dest, (char *) &dword1, 4);
 	string_char_append(dest, ANDI_EAX, 1);
-	string_append(dest, (char *) &and_values.dword2, 4);
+	string_append(dest, (char *) &dword2, 4);
 
 	/* Encode the padded shellcode. */
 	for(base = 0, i = string_get_length(&code_padded) / 4 - 1; i >= 0; i--) {
@@ -280,35 +277,23 @@ void aos_split_triple_sub(int value, int *a, int *b, int *c)
 	}
 }
 
-/*  Returns an operation tuple array of 2 which contains AND pairs which
- *  always evaluate to 0
- */
-tuple_dword aos_generate_and_zero_dwords(void)
+void aos_generate_and_zero_dwords(uint32_t *dword1, uint32_t *dword2)
 {
 	unsigned int i;
-	tuple_dword pair = { 0, 0 };
+	uint8_t *__dword1 = (uint8_t *) dword1;
+	uint8_t *__dword2 = (uint8_t *) dword2;
 
-	for (i = 0; i < sizeof(pair.dword1); i++) {
-		tuple_byte bytes = aos_generate_and_zero_bytes();
-
-		pair.dword1 |= bytes.byte1 << i * 8;
-		pair.dword2 |= bytes.byte2 << i * 8;
-	}
-
-	return pair;
+	for (i = 0; i < sizeof(uint32_t); i++)
+		aos_generate_and_zero_bytes(__dword1 + i, __dword2 + i);
 }
 
-tuple_byte aos_generate_and_zero_bytes(void)
+void aos_generate_and_zero_bytes(uint8_t *byte1, uint8_t *byte2)
 {
-	tuple_byte pair;
-
 	if ( rand_uint32_range(1, 255) <= 127 ) {
-		pair.byte1 = 0x20 | rand_uint32_range(1, 0x1F);
-		pair.byte2 = 0x40 | (rand_uint32_range(0, 0x1F) & ~pair.byte1);
+		*byte1 = 0x20 | rand_uint32_range(1, 0x1F);
+		*byte2 = 0x40 | (rand_uint32_range(0, 0x1F) & ~*byte1);
 	} else {
-		pair.byte1 = 0x40 | rand_uint32_range(0, 0x1F);
-		pair.byte2 = 0x20 | (rand_uint32_range(1, 0x1F) & ~pair.byte1);
+		*byte1 = 0x40 | rand_uint32_range(0, 0x1F);
+		*byte2 = 0x20 | (rand_uint32_range(1, 0x1F) & ~*byte1);
 	}
-
-	return pair;
 }

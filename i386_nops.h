@@ -1,6 +1,6 @@
 /* libaosc, an encoding library for randomized i386 ASCII-only shellcode.
  *
- * Dedicated to Merle Planten.
+ * Dedicated to Kanna Ishihara.
  *
  * Copyright (C) 2001-2008 Ronald Huizer
  *
