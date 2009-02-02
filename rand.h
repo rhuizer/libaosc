@@ -2,7 +2,7 @@
  *
  * Dedicated to Kanna Ishihara.
  *
- * Copyright (C) 2001-2008 Ronald Huizer
+ * Copyright (C) 2001-2009 Ronald Huizer
  *
  * This library is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as
@@ -21,9 +21,11 @@
 #ifndef __RAND_H
 #define __RAND_H
 
+#include <stdint.h>
+
 void rand_init(void);
 
-unsigned int rand_uint32(void);
-unsigned int rand_uint32_range(unsigned int, unsigned int);
+uint32_t rand_uint32(void);
+uint32_t rand_uint32_range(uint32_t, uint32_t);
 
 #endif
