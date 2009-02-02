@@ -1,5 +1,5 @@
 CC	= gcc
-CFLAGS	= -Wall -ggdb -I ../ -I /opt/libemu/include
+CFLAGS	= -Wall -ggdb
 TARGETS	= exec_sh_test
 LIBS	= -laosc -lm
 

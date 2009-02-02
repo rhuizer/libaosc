@@ -22,6 +22,10 @@
 #define WRAPPER_H
 
 #include <stdio.h>
+#include <stdarg.h>
+
+int warning(const char *fmt, ...);
+void fatal(const char *fmt, ...);
 
 FILE *xfopen(const char *, const char *);
 void *xmalloc(size_t);

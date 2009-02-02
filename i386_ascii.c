@@ -59,8 +59,7 @@ struct string *
 aos_encode(struct string *dest, void *src, size_t n,
            void *ra, unsigned int nops)
 {
-	int base, i, j = 0, k;
-	int *ret_addy_stuffer[3];
+	int base, i, k;
 	unsigned int backpatch_index;
 	uint32_t __ra = (uint32_t) ra;
 	operation_tuple_t *operations;

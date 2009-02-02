@@ -24,8 +24,8 @@
 #include <time.h>
 #include <unistd.h>
 #include <sys/mman.h>
-#include "i386_ascii.h"
-#include "wrapper.h"
+#include "../i386_ascii.h"
+#include "../wrapper.h"
 
 #define MAX_NOPS 1000
 
