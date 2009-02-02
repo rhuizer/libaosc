@@ -127,18 +127,14 @@ aos_encode(struct string *dest, void *src, size_t n,
 		free(operations);
 	}
 
-
-	/* Adding post-nopping with random i386 ASCII only (n)opcodes. */
-	aos_nop_engine_init();
-	for(i = 0; i < nops; i++)
-		string_char_append(dest, aos_random_post_nop(), 1);
-
-	/* Fill in the return address placeholders.
-	 * NOTE: we SUBTRACT 'nops' since it got added twice to
-	 *       garbled_code.size
+	/* Now that we know the length of the encoded and decoded payload
+	 * we can perform backpatching of the return address.
 	 */
 	aos_split_triple_sub(
-		0 - (__ra + string_get_length(&code_padded) + string_get_length(dest) - nops),
+		-__ra +					/* return address */
+		-string_get_length(&code_padded) +	/* dec. payload */
+		-string_get_length(dest) +		/* enc. payload */
+		-15,					/* backpatch space */
 		&a, &b, &c
 	);
 	string_insert(dest, backpatch_index, (char *) &c, 4);
@@ -147,6 +143,11 @@ aos_encode(struct string *dest, void *src, size_t n,
 	string_char_insert(dest, backpatch_index, SUBI_EAX, 1);
 	string_insert(dest, backpatch_index, (char *) &a, 4);
 	string_char_insert(dest, backpatch_index, SUBI_EAX, 1);
+
+	/* Adding post-nopping with random i386 ASCII only (n)opcodes. */
+	aos_nop_engine_init();
+	for(i = 0; i < nops; i++)
+		string_char_append(dest, aos_random_post_nop(), 1);
 
 	string_destroy(&code_padded);
 	return dest;
