@@ -9,7 +9,7 @@ RM	= rm
 VERSION	= 1.0.1
 CFLAGS	= -Wall -ggdb -s
 TARGET	= libaosc.a
-FILES	= i386_ascii.o i386_nops.o wrapper.o string.o \
+FILES	= x86_ascii.o i386_nops.o wrapper.o string.o \
 	  mt19937.o rand.o
 
 .c.o:;

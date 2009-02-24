@@ -115,7 +115,7 @@ string_prepend(struct string *string, char *p, size_t len)
 }
 
 struct string *
-string_append(struct string *string, char *p, size_t len)
+string_append(struct string *string, const char *p, size_t len)
 {
 	return string_insert(string,
 	                     vector_char_get_size(&string->data), p, len);
@@ -144,7 +144,7 @@ string_chomp(struct string *string)
 int
 string_print(struct string *string)
 {
-	return printf("%.*s", vector_char_get_size(&string->data),
+	return printf("%.*s", (int) vector_char_get_size(&string->data),
 	                      vector_char_get_element_ptr(&string->data, 0));
 }
 
