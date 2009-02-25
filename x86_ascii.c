@@ -535,10 +535,11 @@ __aosc_split_triple_sub_32(uint32_t value,
 	}
 }
 
-/** Create two random bytes, which produce zero when and-ed together.
+/** Create two random ASCII bytes, which produce zero when and-ed together.
  *
  * This function produces two random bytes, with the additional
- * constraints that the logical AND of these bytes gives a result of zero.
+ * constraints that the logical AND of these bytes gives a result of zero,
+ * and that these bytes fall within the range [0x21, 0x7e].
  *
  * \param byte1 Pointer to the first byte produced.
  * \param byte2 Pointer to the second byte produced.
@@ -555,13 +556,14 @@ __aosc_split_and_8(uint8_t *byte1, uint8_t *byte2)
 	}
 }
 
-/** Create two random words, which produce zero when and-ed together.
+/** Create two random ASCII words, which produce zero when and-ed together.
  *
- * This function produces two random words, with the additional constraint
- * that the logical AND of these words gives a result of zero.
+ * This function produces two random words, with the additional
+ * constraints that the logical AND of these bytes gives a result of zero,
+ * and that every byte in these words falls within the range [0x21, 0x7e].
  *
- * \param qword1 Pointer to the first word produced.
- * \param qword2 Pointer to the second word produced.
+ * \param word1 Pointer to the first word produced.
+ * \param word2 Pointer to the second word produced.
  */
 static void
 __aosc_split_and_16(uint16_t *word1, uint16_t *word2)
@@ -574,10 +576,11 @@ __aosc_split_and_16(uint16_t *word1, uint16_t *word2)
 		__aosc_split_and_8(__word1 + i, __word2 + i);
 }
 
-/** Create two random dwords, which produce zero when and-ed together.
+/** Create two random ASCII dwords, which produce zero when and-ed together.
  *
- * This function produces two random dwords, with the additional constraint
- * that the logical AND of these dwords gives a result of zero.
+ * This function produces two random dwords, with the additional
+ * constraints that the logical AND of these bytes gives a result of zero,
+ * and that every byte in these words falls within the range [0x21, 0x7e].
  *
  * \param dword1 Pointer to the first dword produced.
  * \param dword2 Pointer to the second dword produced.

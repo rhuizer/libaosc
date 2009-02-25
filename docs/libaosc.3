@@ -1,0 +1,79 @@
+.\" This man page is Copyright (C) 2009 Ronald Huizer.
+.\" Permission is granted to distribute possibly modified copies
+.\" of this page provided the header is included verbatim,
+.\" and in case of nontrivial modification author and date
+.\" of the modification is added to the header.
+.TH libaosc 3 2009-02-25 "libaosc" "libaosc programmer's manual"
+.SH NAME
+libaosc \- a library for encoding x86 ASCII-only machine code.
+.SH SYNOPSIS
+.nf
+.B #include <libaosc.h>
+.sp
+.BI "char *aosc_encode_32(void *"src ", size_t "size ", uint32_t "address ",
+.BI "                     size_t "nops ");
+.BI "char *aosc_encode_64(void *"src ", size_t "size ", uint64_t "address ",
+.BI "                     size_t "nops ");
+.fi
+.SH DESCRIPTION
+The
+.BR aosc_encode_32 ()
+function encodes the machine code pointed to by
+.I
+src
+which is
+.I
+size
+bytes big to randomized ASCII-only i386 machine code for execution at
+address
+.I
+address.
+.I
+numnops
+specifies the number of randomized ASCII-only i386 nop instructions will be
+included in the generated shellcode.  If nops are specified the generated
+shellcode can be stored in memory anywhere in the range [address - nops,
+address] and the actual execution of the generated x86 machine code can
+begin anywhere within the nops.
+
+This function returns the ASCII-only x86 code in a
+.BR malloc ()
+allocated string; the user is expected to clean this up by calling
+.BR free ()
+when it is no longer needed.
+.PP
+The
+.BR aosc_encode_64 ()
+function performs an encoding similar to the
+.BR aosc_encode_32 ()
+function, but for execution on the x86_64 platform.
+
+.SH "NOTES"
+The
+.I address
+parameter to these functions is used by libaosc to transfer control to the
+decoded shellcode that the generated shellcode produces when executed.
+The generated shellcode is tied to this address, and can only be executed
+stored at this particular address, although this restriction is alleviated
+by specifying nops, which allows the generated shellcode to be executed
+when it is stored at any address in the range [address - nops, address].
+
+The generated x86_64 code is currently less compact than its i386
+counterpart, as the x86_64 does not allow stack operations on dword
+registers, nor operations with 64-bit immediate values.  To work around
+this the x86_64 code currently relies on 16-bit operations, thus taking
+more space.
+
+The x86_64 random nopping scheme is currently broken; nops should be set
+to 0.
+
+.SH "RETURN VALUE"
+.BR aosc_encode_32 ()
+and
+.BR aosc_encode_64 ()
+return a dynamically allocated string containing ASCII-only machine code
+on success.  On error NULL is returned.
+
+.SH "SEE ALSO"
+.BR malloc (3),
+.BR free (3)
