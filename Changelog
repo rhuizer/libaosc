@@ -1,0 +1,10 @@
+
+libaosc-1.0.2:
+    - Added a manpage outlining the use of libaosc.
+    - x86-64 support for ASCII-only encoding has been provided, and the
+      i386_ascii module was renamed to x86_ascii.
+    - x86_ascii now has a consistent interface (a lot of refactoring).
+    - x86_ascii should now be (more) endian safe, so this library can
+      be used in remote exploits launched from big endian machines.
+    - A bug in __aosc_split_and_8() caused 0x20 values to be returned,
+      this issue has been addressed.
