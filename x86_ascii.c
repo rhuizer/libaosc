@@ -56,6 +56,7 @@ static char *__aosc_backpatch_x86_64(char *dst, uint64_t rsp);
 static void __aosc_split_and_8(uint8_t *, uint8_t *);
 static void __aosc_split_and_16(uint16_t *, uint16_t *);
 static void __aosc_split_and_32(uint32_t *, uint32_t *);
+static int __aosc_split_double_sub_32(uint32_t value, uint32_t *a, uint32_t *b);
 static void __aosc_split_triple_sub_16(uint16_t, uint16_t *, uint16_t *, uint16_t *);
 static void __aosc_split_triple_sub_32(uint32_t, uint32_t *, uint32_t *, uint32_t *);
 
@@ -239,7 +240,7 @@ __aosc_encode_x86_64(struct string *dest, void *src, size_t n,
 	for(base = 0, i = string_get_length(&code_padded) / 2 - 1; i >= 0; i--) {
 		uint16_t value = ((uint16_t *)string_get_data(&code_padded))[i];
 
-		__aosc_encode_fixed_size_16(encoded, base, value);
+		__aosc_encode_16(encoded, base, value);
 		base = value;
 		string_append(dest, encoded, strlen(encoded));
 	}
@@ -325,13 +326,37 @@ static char *__aosc_encode_and_32(char *dst)
 	return dst;
 }
 
-/** Encode an uint32_t with a set of i386 ASCII only instructions.
+/** Encode an uint16_t with a set of x86 ASCII only instructions
  *
- * This function produces two random bytes, with the additional constraint
- * that the logical AND of these bytes gives a result of zero.
+ * This function encodes an uint16_t using x86 ASCII only instructions.
+ * It yields a sequence of x86 ASCII only instructions which when
+ * executed will set eax to the value 'val' and pushing 'val' to the stack,
+ * assuming that eax was set to base to begin with.
  *
- * \param byte1 Pointer to the first byte produced.
- * \param byte2 Pointer to the second byte produced.
+ * The instructions generated will have the same meaning on both i386 and
+ * x86_64.
+ *
+ * \param dst Pointer to the destination string for the produced sequence.
+ * \param base Initial value of eax when starting encoding.
+ * \param val Target value pushed to the stack at the end of encoding.
+ */
+static char *__aosc_encode_16(char *dst, uint16_t base, uint16_t val)
+{
+	return __aosc_encode_fixed_size_16(dst, base, val);
+}
+
+/** Encode an uint32_t with a set of i386 ASCII only instructions
+ *
+ * This function encodes an uint32_t using i386 ASCII only instructions.
+ * It yields a sequence of i386 ASCII only instructions which when
+ * executed will set eax to the value 'val' and pushing 'val' to the stack,
+ * assuming that eax was set to base to begin with.
+ *
+ * The instructions generated can be executed only on i386.
+ *
+ * \param dst Pointer to the destination string for the produced sequence.
+ * \param base Initial value of eax when starting encoding.
+ * \param val Target value pushed to the stack at the end of encoding.
  */
 static char *__aosc_encode_32(char *dst, uint32_t base, uint32_t val)
 {
@@ -339,7 +364,7 @@ static char *__aosc_encode_32(char *dst, uint32_t base, uint32_t val)
 	uint32_t dword1, dword2, dword3;
 
 	/* Try if we can encode this value with two subtractions. */
-	ret = aos_split_double_sub(base - val, &dword1, &dword2);
+	ret = __aosc_split_double_sub_32(base - val, &dword1, &dword2);
 	if (ret == 0) {
 		dst[0] = 0x2d;			/* sub eax, 0xXXXXXXXX */
 		PUT_32BIT_LSB(&dst[1], dword1);
@@ -364,19 +389,19 @@ static char *__aosc_encode_32(char *dst, uint32_t base, uint32_t val)
 	return dst;
 }
 
-/** Encode an uint16_t with a set of i386 ASCII only instructions
+/** Encode an uint16_t with a set of x86 ASCII only instructions
  *
- * This function encodes an uint16_t using i386 ASCII only instructions
+ * This function encodes an uint16_t using x86 ASCII only instructions
  * while making sure the produced sequence is always of the same size.
- * It yields a sequence of i386 ASCII only instructions which when
+ * It yields a sequence of x86 ASCII only instructions which when
  * executed will set eax to the value 'val' and pushing 'val' to the stack,
  * assuming that eax was set to base to begin with.
  *
  * The instructions generated will have the same meaning on both i386 and
- * x86_64.
+ * x86-64.
  *
  * \param dst Pointer to the destination string for the produced sequence.
- * \param base Initial value of eax when starting encoding.
+ * \param base Initial value of ax when starting encoding.
  * \param val Target value pushed to the stack at the end of encoding.
  */
 static char *__aosc_encode_fixed_size_16(char *dst, uint16_t base, uint16_t val)
@@ -400,7 +425,7 @@ static char *__aosc_encode_fixed_size_16(char *dst, uint16_t base, uint16_t val)
 	return dst;
 }
 
-/** Encode an uint32_t with a set of x86 ASCII only instructions
+/** Encode an uint32_t with a set of i386 ASCII only instructions
  *
  * This function encodes an uint32_t using i386 ASCII only instructions
  * while making sure the produced sequence is always of the same size.
@@ -431,13 +456,14 @@ static char *__aosc_encode_fixed_size_32(char *dst, uint32_t base, uint32_t val)
 	return dst;
 }
 
-int aos_split_double_sub(int value, int *a, int *b)
+static int
+__aosc_split_double_sub_32(uint32_t value, uint32_t *a, uint32_t *b)
 {
 	int i, max, min, x;
 
 	*a = *b = 0;
 
-	for(i = 0; i < 4; i++) {
+	for(i = 0; i < sizeof(uint32_t); i++) {
 		int one_byte;
 
 		one_byte = (value & 0x7F000000) / 0x1000000;
