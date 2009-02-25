@@ -95,7 +95,8 @@ string_char_append(struct string *string, char c, unsigned int num)
 }
 
 struct string *
-string_insert(struct string *string, unsigned int index, char *p, size_t len)
+string_insert(struct string *string, unsigned int index,
+              const char *p, size_t len)
 {
 	unsigned long i;
 
