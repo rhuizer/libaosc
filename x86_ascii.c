@@ -459,18 +459,17 @@ static char *__aosc_encode_fixed_size_32(char *dst, uint32_t base, uint32_t val)
 static int
 __aosc_split_double_sub_32(uint32_t value, uint32_t *a, uint32_t *b)
 {
-	int i, max, min, x;
+	size_t i;
+	int max, min, x;
 
 	*a = *b = 0;
 
 	for(i = 0; i < sizeof(uint32_t); i++) {
 		int one_byte;
 
-		one_byte = (value & 0x7F000000) / 0x1000000;
-		if(value < 0)
-			one_byte += 128;
+		one_byte = value >> 24;
 
-		if(one_byte < (RANGE_MIN * 2) || one_byte > (RANGE_MAX * 2))
+		if (one_byte < (RANGE_MIN * 2) || one_byte > (RANGE_MAX * 2))
 			return -1;
 
 		max = MAX(RANGE_MIN, one_byte - RANGE_MAX);
@@ -479,9 +478,9 @@ __aosc_split_double_sub_32(uint32_t value, uint32_t *a, uint32_t *b)
 		x = rand_uint32_range(max, min);
 		one_byte -= x;
 
-		*a = (*a * 0x100) + x;
-		*b = (*b * 0x100) + one_byte;
-		value *= 0x100;
+		*a = (*a << 8) + x;
+		*b = (*b << 8) + one_byte;
+		value <<= 8;
 	}
 
 	return 0;
