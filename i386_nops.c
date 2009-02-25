@@ -21,6 +21,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include "rand.h"
 #include "x86_ascii.h"
 #include "i386_nops.h"
 #include "wrapper.h"

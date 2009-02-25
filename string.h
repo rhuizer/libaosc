@@ -45,7 +45,7 @@ struct string *string_char_prepend(struct string *string, char c,
 struct string *string_char_append(struct string *string, char c,
                                   unsigned int num);
 struct string *string_insert(struct string *string, unsigned int index,
-                             char *p, size_t len);
+                             const char *p, size_t len);
 struct string *string_prepend(struct string *string, char *p, size_t len);
 struct string *string_append(struct string *string, const char *p, size_t len);
 struct string *string_chomp(struct string *string);
