@@ -46,7 +46,7 @@ The
 .BR aosc_encode_64 ()
 function performs an encoding similar to the
 .BR aosc_encode_32 ()
-function, but for execution on the x86_64 platform.
+function, but for execution on the x86-64 platform.
 
 .SH "NOTES"
 The
@@ -58,13 +58,13 @@ stored at this particular address, although this restriction is alleviated
 by specifying nops, which allows the generated shellcode to be executed
 when it is stored at any address in the range [address - nops, address].
 
-The generated x86_64 code is currently less compact than its i386
-counterpart, as the x86_64 does not allow stack operations on dword
+The generated x86-64 code is currently less compact than its i386
+counterpart, as the x86-64 does not allow stack operations on dword
 registers, nor operations with 64-bit immediate values.  To work around
-this the x86_64 code currently relies on 16-bit operations, thus taking
+this the x86-64 code currently relies on 16-bit operations, thus taking
 more space.
 
-The x86_64 random nopping scheme is currently broken; nops should be set
+The x86-64 random nopping scheme is currently broken; nops should be set
 to 0.
 
 .SH "RETURN VALUE"

@@ -6,7 +6,7 @@ CP	= cp
 TAR	= tar
 RM	= rm
 
-VERSION	= 1.0.1
+VERSION	= 1.0.2
 CFLAGS	= -Wall -ggdb -s
 TARGET	= libaosc.a
 FILES	= x86_ascii.o i386_nops.o wrapper.o string.o \
