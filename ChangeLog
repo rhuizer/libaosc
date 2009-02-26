@@ -1,3 +1,6 @@
+libaosc-1.0.3:
+    - Added GNU autotools support.
+    - 
 
 libaosc-1.0.2:
     - Added a manpage outlining the use of libaosc.

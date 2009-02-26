@@ -16,10 +16,11 @@
  *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
+ * MA 02110-1301, USA.
  */
-#ifndef GETPUT_H
-#define GETPUT_H
+#ifndef __GETPUT_H
+#define __GETPUT_H
 
 #include <stdint.h>
 
@@ -160,4 +161,4 @@ static inline double __double_from_uint64_t(uint64_t value)
 		(cp)[0] = (value);					\
 	} while (0)
 
-#endif	/* !GETPUT_H */
+#endif	/* !__GETPUT_H */

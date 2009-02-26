@@ -1,4 +1,4 @@
-/* libaosc, an encoding library for randomized i386 ASCII-only shellcode.
+/* libaosc, an encoding library for randomized x86 ASCII-only shellcode.
  *
  * Dedicated to Kanna Ishihara.
  *
@@ -16,19 +16,24 @@
  *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
+ * MA 02110-1301, USA.
  */
-#ifndef WRAPPER_H
-#define WRAPPER_H
+#ifndef __X86_ASCII_H
+#define __X86_ASCII_H
 
 #include <stdio.h>
-#include <stdarg.h>
+#include <stdint.h>
 
-int warning(const char *fmt, ...);
-void fatal(const char *fmt, ...);
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-FILE *xfopen(const char *, const char *);
-void *xmalloc(size_t);
-void *xrealloc(void *, size_t);
+char *aosc_encode_32(void *, size_t, uint32_t, size_t);
+char *aosc_encode_64(void *, size_t, uint64_t, size_t);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

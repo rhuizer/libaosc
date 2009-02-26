@@ -24,9 +24,9 @@
 #include <time.h>
 #include <unistd.h>
 #include <sys/mman.h>
-#include "../rand.h"
-#include "../x86_ascii.h"
-#include "../wrapper.h"
+#include "rand.h"
+#include "x86_ascii.h"
+#include "wrapper.h"
 
 #define MAX_NOPS 1000
 
