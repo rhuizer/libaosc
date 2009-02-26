@@ -29,7 +29,7 @@
 #include "getput.h"
 #include "x86_ascii.h"
 #include "i386_nops.h"
-#include "string.h"
+#include "dynstring.h"
 #include "wrapper.h"
 #include "rand.h"
 
