@@ -29,8 +29,8 @@
   extern "C" {
 #endif
 
-#define SAFE	true
-#define UNSAFE	false
+#define safe	true
+#define unsafe	false
 
 struct x86_instruction {
 	uint8_t		opcode;

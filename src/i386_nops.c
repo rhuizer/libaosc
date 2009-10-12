@@ -67,8 +67,8 @@ __aosc_set_safe(struct x86_instruction_set *result,
  * at specific locations in the nop string.
  */
 
-#define SAFE(x)		((x).safety)
-#define UNSAFE(x)	(!(x)->safety)
+#define IS_SAFE(x)	((x).safety)
+#define IS_UNSAFE(x)	(!(x)->safety)
 
 #define IS_JMP(x)	((x) > JC_MIN && (x) < JC_MAX)
 
@@ -167,7 +167,7 @@ unsigned char stateful_random_safe_opcode(unsigned int nops)
 
 	do {
 		i = &x86_set.data[rand_uint32_range(0, x86_set.size - 1)];
-	} while(space < i->size || (UNSAFE(i) && !can_use_unsafe_instr(i, nops)));
+	} while(space < i->size || (IS_UNSAFE(i) && !can_use_unsafe_instr(i, nops)));
 	curlen++;
 
 	/* Track the last instruction handled by the engine. */
@@ -356,7 +356,7 @@ __aosc_set_safe(struct x86_instruction_set *result,
 		return NULL;
 
 	for (i = j = 0; i < set->size; i++)
-		if (SAFE(set->data[i]))
+		if (IS_SAFE(set->data[i]))
 			result->data[j++] = set->data[i];
 
 	return __aosc_set_resize(result, j);
