@@ -153,7 +153,7 @@ __aosc_encode_i386(struct string *dest, void *src, size_t n,
 	__aosc_code_init(&code_padded, src, n);
 
 	/* Adding pre-nopping with random i386 ASCII only (n)opcodes. */
-	aos_nop_engine_init();
+	aosc_nop_engine_init();
 	for(i = 0; i < nops; i++)
 		string_char_append(dest,
 		                   stateful_random_safe_opcode(nops), 1);
@@ -191,7 +191,7 @@ __aosc_encode_i386(struct string *dest, void *src, size_t n,
 	string_insert(dest, backpatch_index, encoded, strlen(encoded));
 
 	/* Adding post-nopping with random i386 ASCII only (n)opcodes. */
-	aos_nop_engine_init();
+	aosc_nop_engine_init();
 	for(i = 0; i < nops; i++)
 		string_char_append(dest, aos_random_post_nop(), 1);
 
@@ -217,7 +217,7 @@ __aosc_encode_x86_64(struct string *dest, void *src, size_t n,
 	__aosc_code_init(&code_padded, src, n);
 
 	/* Adding pre-nopping with random i386 ASCII only (n)opcodes. */
-	aos_nop_engine_init();
+	aosc_nop_engine_init();
 	for(i = 0; i < nops; i++)
 		string_char_append(dest,
 		                   stateful_random_safe_opcode(nops), 1);
@@ -255,7 +255,7 @@ __aosc_encode_x86_64(struct string *dest, void *src, size_t n,
 	string_insert(dest, backpatch_index, encoded, strlen(encoded));
 
 	/* Adding post-nopping with random i386 ASCII only (n)opcodes. */
-	aos_nop_engine_init();
+	aosc_nop_engine_init();
 	for(i = 0; i < nops; i++)
 		string_char_append(dest, aos_random_post_nop(), 1);
 

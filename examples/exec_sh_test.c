@@ -59,8 +59,7 @@ int main(void)
 #if defined(__i386__)
 	ascii_code = aosc_encode_32(shellcode, sizeof(shellcode) - 1, (uint32_t)address + foo, numnops);
 #elif defined(__x86_64__)
-	ascii_code = aosc_encode_64(shellcode, sizeof(shellcode) - 1, (uint64_t)address, 0);
-	foo = bar = 0;
+	ascii_code = aosc_encode_64(shellcode, sizeof(shellcode) - 1, (uint64_t)address + foo, numnops);
 #endif
 
 	printf("Executing shellcode:\n\n");

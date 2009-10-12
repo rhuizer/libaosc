@@ -29,46 +29,22 @@
   extern "C" {
 #endif
 
-#define safe	true
-#define unsafe	false
+#define SAFE	true
+#define UNSAFE	false
 
-typedef struct {
-	i386_opcode_t opcode;
-	bool safety;
-	unsigned int size;
-} i386_instruction_t;
+struct x86_instruction {
+	uint8_t		opcode;
+	int		safety;
+	size_t		size;
+};
 
-typedef struct {
-	i386_instruction_t *i;
-	size_t s;
-} i386_iset;
+struct x86_instruction_set {
+	struct x86_instruction	*data;
+	size_t			size;
+};
 
 void aos_nop_engine_init(void);
-bool safe_unsafe_instr(i386_instruction_t, unsigned int);
-inline unsigned char random_safe_opcode(void);
 unsigned char stateful_random_safe_opcode(unsigned int);
-
-inline i386_instruction_t aos_random_nop(i386_iset);
-unsigned char aos_random_post_nop(void);
-i386_instruction_t aos_random_safe_nop(i386_iset);
-i386_instruction_t aos_random_unsafe_nop(i386_iset);
-i386_instruction_t aos_random_range_nop(i386_iset, unsigned int, unsigned int);
-
-inline i386_iset aos_set_jmp(i386_iset);
-i386_iset aos_set_nojmp(i386_iset);
-i386_iset aos_set_safe(i386_iset);
-i386_iset aos_set_unsafe(i386_iset);
-
-i386_iset aos_set_range(i386_iset, unsigned int, unsigned int);
-i386_iset aos_set_size(i386_iset, unsigned int);
-i386_iset aos_set_add(i386_iset, i386_instruction_t);
-i386_iset aos_set_subtract(i386_iset, i386_iset);
-
-void aos_set_print(i386_iset);
-
-inline i386_iset aos_set_alloc(size_t);
-inline i386_iset aos_set_realloc(i386_iset *, size_t);
-inline void aos_set_free(i386_iset l);
 
 #ifdef __cplusplus
   }

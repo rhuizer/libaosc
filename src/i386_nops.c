@@ -21,11 +21,38 @@
  */
 #include <assert.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include "rand.h"
 #include "x86_ascii.h"
 #include "i386_nops.h"
 #include "wrapper.h"
+
+/* aosc_random_nop(): Generate a single randomized nop.
+ * aosc_random_nops(): Generate random string of nops.
+ * aosc_random
+ *
+ */
+
+static void __aosc_set_destroy(struct x86_instruction_set *set);
+static struct x86_instruction_set *__aosc_set_init(
+	struct x86_instruction_set *set, size_t size);
+static struct x86_instruction_set *__aosc_set_range(
+	struct x86_instruction_set *, struct x86_instruction_set *,
+	unsigned int, unsigned int);
+static struct x86_instruction_set *__aosc_set_subtract(
+	struct x86_instruction_set *, struct x86_instruction_set *,
+	struct x86_instruction_set *);
+static struct x86_instruction_set *
+__aosc_set_resize(struct x86_instruction_set *set, size_t size);
+
+
+inline struct x86_instruction *
+__aosc_random_nop(struct x86_instruction_set *set);
+struct x86_instruction_set *
+__aosc_set_nojmp(struct x86_instruction_set *result,
+                 struct x86_instruction_set *set);
+struct x86_instruction_set *
+__aosc_set_safe(struct x86_instruction_set *result,
+                struct x86_instruction_set *set);
 
 /*
  * IDEA: we can use a 'safe' opcode everywhere; safe means that it's operand
@@ -41,7 +68,7 @@
  */
 
 #define SAFE(x)		((x).safety)
-#define UNSAFE(x)	(!(x).safety)
+#define UNSAFE(x)	(!(x)->safety)
 
 #define IS_JMP(x)	((x) > JC_MIN && (x) < JC_MAX)
 
@@ -56,7 +83,7 @@
  *  'unsafe' means this is not the case, and wether the instruction can
  *  be used or not should be checked.
  */
-static i386_instruction_t const instr[] = {
+static struct x86_instruction x86_instr[] = {
 	{ AAA,		safe,	1 }, { AAS,		safe,	1 },
 	{ DAA,		safe,	1 }, { DAS,		safe,	1 },
 	{ BITS,		unsafe,	1 }, { ADDR,		unsafe,	1 },
@@ -81,38 +108,28 @@ static i386_instruction_t const instr[] = {
 	{ CMPI_EAX,	safe,	5 }, { SUBI_EAX,	safe,	5 },
 	{ XORI_EAX,	safe,	5 }
 };
-static unsigned int const instructions =
-			sizeof(instr) / sizeof(i386_instruction_t);
 
-static i386_iset i386_i = {
-	(i386_instruction_t *)instr,
-	sizeof(instr) / sizeof(i386_instruction_t)
+static struct x86_instruction_set x86_set = {
+	x86_instr,
+	sizeof(x86_instr) / sizeof(struct x86_instruction)
 };
 
-static unsigned int curlen;
-static i386_opcode_t max_opcode, min_opcode, next_opcode, prev_opcode;
-static bool next_opcode_set = false, prev_opcode_set = false;
+static size_t curlen;
 
-void aos_nop_engine_init(void)
+/* The engine keeps track of the last instruction it generated, and at
+ * points selects the next instruction to be used.
+ */
+static struct x86_instruction *prev_instr = NULL;
+static struct x86_instruction *next_instr = NULL;
+
+void aosc_nop_engine_init(void)
 {
-	unsigned int j;
-
 	curlen = 0;
-	if(instructions == 0)
-		return;
-
-	max_opcode = min_opcode = instr[0].opcode;
-
-	for(j = 1; j < instructions; j++) {
-		if(instr[j].opcode > max_opcode)
-			max_opcode = instr[j].opcode;
-		if(instr[j].opcode < min_opcode)
-			min_opcode = instr[j].opcode;
-	}
+	prev_instr = next_instr = NULL;
 }
 
 /*
- * We cannot use conditional jumps in out post nops, because we do not exactly
+ * We cannot use conditional jumps in our post nops, because we do not exactly
  * know where our decoded payload will end up.
  * By prepadding our decoded payload with 4 nops itself, we ensure the use
  * of multi byte instructions (since we avoid opcode misalignment issues)
@@ -120,14 +137,14 @@ void aos_nop_engine_init(void)
  */
 unsigned char aos_random_post_nop(void)
 {
-	i386_iset post_s;
-	i386_instruction_t instr;
+	struct x86_instruction *instr;
+	struct x86_instruction_set postnop_set;
 
-	post_s = aos_set_nojmp(i386_i);
-	instr = aos_random_nop(post_s);
-	aos_set_free(post_s);
+	__aosc_set_nojmp(&postnop_set, &x86_set);
+	instr = __aosc_random_nop(&postnop_set);
+	__aosc_set_destroy(&postnop_set);
 
-	return instr.opcode;
+	return instr->opcode;
 }
 
 /*
@@ -136,24 +153,27 @@ unsigned char aos_random_post_nop(void)
  */
 unsigned char stateful_random_safe_opcode(unsigned int nops)
 {
-	i386_instruction_t i;
-	unsigned int space = nops - curlen;
+	size_t space = nops - curlen;
+	struct x86_instruction *i;
 
-	if(next_opcode_set) {
-		next_opcode_set = false;
+	/* If the next instruction is already known, use that one. */
+	if (next_instr != NULL) {
+		unsigned char opcode = next_instr->opcode;
+
+		next_instr = NULL;
 		curlen++;
-		return next_opcode;
+		return opcode;
 	}
 
 	do {
-		i = instr[rand_uint32_range(0, instructions - 1)];
-	} while(space < i.size || (UNSAFE(i) && !safe_unsafe_instr(i, nops)));
+		i = &x86_set.data[rand_uint32_range(0, x86_set.size - 1)];
+	} while(space < i->size || (UNSAFE(i) && !can_use_unsafe_instr(i, nops)));
 	curlen++;
 
-	prev_opcode = i.opcode;
-	prev_opcode_set = true;
+	/* Track the last instruction handled by the engine. */
+	prev_instr = i;
 
-	return i.opcode;
+	return i->opcode;
 }
 
 /*
@@ -161,22 +181,24 @@ unsigned char stateful_random_safe_opcode(unsigned int nops)
  *       improve randomness, but this will need additional checks.
  *       Should be possible with a backtracking algorithm
  */
-bool safe_unsafe_instr(i386_instruction_t i, unsigned int noplen)
+int
+can_use_unsafe_instr(struct x86_instruction *instr, size_t noplen)
 {
-	unsigned int space = noplen - curlen;
+	struct x86_instruction_set foo, bar;
+	size_t left = noplen - curlen;
 
-	switch(i.opcode) {
-	
-	/*
-	 * BITS and ADDR need to be discarded if they are to be the last
+	if (left == 0) {
+		fprintf(stderr, "The libaosc author fucked up.  Bailing out.\n");
+		exit(EXIT_FAILURE);
+	}
+
+	switch(instr->opcode) {
+	/* BITS and ADDR need to be discarded if they are to be the last
 	 * nop before the shellcode starts, as they might modify the meaning.
 	 */
 	case BITS:
 	case ADDR:
-		if(space != 1)
-			return true;
-		break;
-
+		return left != 1;
 	case JO:
 	case JNO:
 	case JB:
@@ -193,49 +215,63 @@ bool safe_unsafe_instr(i386_instruction_t i, unsigned int noplen)
 	case JGE:
 	case JG:
 	case JLE:
-/*
- *  Some explanation, this function will never get called with space < 2
- *  from stateful_random_safe_opcode() due to the fact that Jcc are 2 bytes
- *  on theirselves. We assert in case this ever gets called by a different
- *  function.
- *  ADDR and BITS 32/16 bit modeswitches fuck up Jcc's due to the fact the
- *  jump target is truncated to 16 bits with insertion of 00 00 at the MSW.
- *  Finally, two is subtracted from the maximum opcode range, since the
- *  Jcc instruction takes two bytes by itself, and will increment eip already.
- */
-		assert(space >= 2);
-
-		if(prev_opcode_set)
-			if(prev_opcode == ADDR || prev_opcode == BITS)
-				return false;
-
-		if(space >= min_opcode + 2) {
-			i386_iset foo, bar;
-
-			foo = aos_set_range(i386_i, min_opcode, space - 2);
-			bar = aos_set_safe(foo);
-
-			if(bar.s == 0) {
-				aos_set_free(foo);
-				aos_set_free(bar);
-				return false;
-			}
-
-			next_opcode = aos_random_nop(bar).opcode;
-			next_opcode_set = true;
-
-			aos_set_free(foo);
-			aos_set_free(bar);
-			return true;
+		/* We shouldn't be here if the amount of space we have left
+		 * is less than 2 bytes.
+		 */
+		if (left < 2) {
+			fprintf(stderr, "The libaosc author fucked up.  Bailing out.\n");
+			exit(EXIT_FAILURE);
 		}
-		break;
-	default:
-		return false;
+
+		/* Make sure not to accidentally use 16-bit branch targets,
+		 * as this will result in a zeroed high 16-bit part.
+		 */
+		if(prev_instr &&
+		   (prev_instr->opcode == ADDR || prev_instr->opcode == BITS))
+			return 0;
+
+		/* Determine the valid set of instructions we have left.  The
+		 * branch itself takes 2 bytes already.
+		 *
+		 * XXX: this set will only shrink! optimize!
+		 */
+		if (__aosc_set_range(&foo, &x86_set, 0, left - 2) == NULL)
+			return -1;
+
+		/* If the set is empty, we cannot use a branch, as there is no
+		 * branch operand we can follow up with.
+		 */
+		if (foo.size == 0)
+			return 0;
+
+		/* XXX: for now only follup up on branches with a safe
+		 * instruction.  This should use a backtracking algorithm.
+		 */
+		if (__aosc_set_safe(&bar, &foo) == NULL) {
+			__aosc_set_destroy(&foo);
+			return -1;
+		}
+
+		__aosc_set_destroy(&foo);
+
+		if (bar.size == 0) {
+			__aosc_set_destroy(&bar);
+			return 0;
+		}
+
+		/* Enforce the next opcode already, as we know it at this
+		 * point anyhow.
+		 */
+		next_instr = __aosc_random_nop(&bar);
+
+		__aosc_set_destroy(&bar);
+		return 1;
 	}
 
-	return false;
+	return 0;
 }
 
+#if 0
 unsigned char *generate_nops(unsigned int noplen)
 {
 	unsigned char *nops;
@@ -249,237 +285,135 @@ unsigned char *generate_nops(unsigned int noplen)
 
 	return nops;
 }
+#endif
 
-/*
- *  Get a random 'nop' from the instruction list p of size s
- */
-inline i386_instruction_t aos_random_nop(i386_iset l)
+inline struct x86_instruction *
+__aosc_random_nop(struct x86_instruction_set *set)
 {
-	assert(l.s != 0);
+	assert(set->size != 0);
 
-	return l.i[rand_uint32_range(0, l.s - 1)];
+	return &set->data[rand_uint32_range(0, set->size - 1)];
 }
 
-/*
- *  Get a random safe 'nop' from the list p of size s
- *  This is done by constructing a subset of p with only safe instructions
- */
-i386_instruction_t aos_random_safe_nop(i386_iset l)
+static inline struct x86_instruction_set *
+__aosc_set_jmp(struct x86_instruction_set *result,
+               struct x86_instruction_set *set)
 {
-	i386_iset safe_s;
-	i386_instruction_t foo;
-
-	safe_s = aos_set_safe(l);
-	foo = aos_random_nop(safe_s);
-	aos_set_free(safe_s);
-
-	return foo;
+	return __aosc_set_range(result, set, JC_MIN, JC_MAX);
 }
 
-/*
- *  Get a random unsafe 'nop' from the list p of size s
- *  This is done by constructing a subset of p with only safe instructions
- */
-i386_instruction_t aos_random_unsafe_nop(i386_iset l)
+struct x86_instruction_set *
+__aosc_set_nojmp(struct x86_instruction_set *result,
+                 struct x86_instruction_set *set)
 {
-	i386_iset unsafe_s;
-	i386_instruction_t foo;
+	struct x86_instruction_set jumps;
 
-	unsafe_s = aos_set_unsafe(l);
-	foo = aos_random_nop(unsafe_s);
-	aos_set_free(unsafe_s);
+	/* Worst case: we cannot have more jumps on set than its size */
+	if (__aosc_set_init(result, set->size) == NULL)
+		return NULL;
 
-	return foo;
+	/* Determine the set of jump instructions. */
+	if (__aosc_set_jmp(&jumps, set) == NULL) {
+		__aosc_set_destroy(result);
+		return NULL;
+	}
+
+	/* And subtract this from the set of instructions. */
+	if (__aosc_set_subtract(result, set, &jumps) == NULL) {
+		__aosc_set_destroy(result);
+		__aosc_set_destroy(&jumps);
+		return NULL;
+	}
+
+	__aosc_set_destroy(&jumps);
+	return result;
 }
 
-/*
- *  Get a random nop from the list with range [lo..hi]
- */
-i386_instruction_t aos_random_range_nop(l, lo, hi)
-i386_iset l;
-unsigned int lo, hi;
+static struct x86_instruction_set *
+__aosc_set_range(struct x86_instruction_set *result,
+                 struct x86_instruction_set *set,
+                 unsigned int min, unsigned int max)
 {
-	i386_iset range_s;
-	i386_instruction_t foo;
+	size_t i, j;
 
-	range_s = aos_set_range(l, lo, hi);
-	foo = aos_random_nop(range_s);
-	aos_set_free(range_s);
+	if (__aosc_set_init(result, set->size) == NULL)
+		return NULL;
 
-	return foo;
+	for (i = j = 0; i < set->size; i++)
+		if (set->data[i].opcode >= min && set->data[i].opcode <= max)
+			result->data[j++] = set->data[i];
+
+	return __aosc_set_resize(result, j);
 }
 
-/*
- * Construct a subset from 'l' with only JC type instructions
- */
-inline i386_iset aos_set_jmp(i386_iset l)
+struct x86_instruction_set *
+__aosc_set_safe(struct x86_instruction_set *result,
+                struct x86_instruction_set *set)
 {
-	return aos_set_range(l, JC_MIN, JC_MAX);
+	size_t i, j;
+
+	if (__aosc_set_init(result, set->size) == NULL)
+		return NULL;
+
+	for (i = j = 0; i < set->size; i++)
+		if (SAFE(set->data[i]))
+			result->data[j++] = set->data[i];
+
+	return __aosc_set_resize(result, j);
 }
 
-/*
- * Construct a subset from 'l' with no JC type instructions
+/* XXX: inefficient, of course this can be improved when we force an
+ * ordering in the sets themselves, but I'm too lazy at the moment.
  */
-i386_iset aos_set_nojmp(i386_iset l)
+static struct x86_instruction_set *
+__aosc_set_subtract(struct x86_instruction_set *result,
+                    struct x86_instruction_set *set1,
+                    struct x86_instruction_set *set2)
 {
-	i386_iset jmps, nojmps;
+	size_t i, j, k;
 
-	jmps = aos_set_jmp(l);
-	nojmps = aos_set_subtract(l, jmps);
-	aos_set_free(jmps);
-	return nojmps;
-}
+	if (__aosc_set_init(result, set1->size) == NULL)
+		return NULL;
 
-/*
- * Construct a subset from 'l' where the instruction size equals size
- */
-i386_iset aos_set_size(i386_iset l, unsigned int size)
-{
-	unsigned int i, j;
-	i386_iset size_s;
-
-	size_s = aos_set_alloc(l.s);
-
-	for(i = j = 0; i < l.s; i++)
-		if(l.i[i].size == size)
-			size_s.i[j++] = l.i[i];
-
-	return aos_set_realloc(&size_s, j);
-}
-
-/*
- * Construct a subset from 'l' where the opcode is in range [lo, hi]
- */
-i386_iset aos_set_range(i386_iset l, unsigned int lo, unsigned int hi)
-{
-	unsigned int i, j;
-	i386_iset range_s;
-
-	range_s = aos_set_alloc(l.s);
-
-	for(i = 0, j = 0; i < l.s; i++)
-		if(l.i[i].opcode >= lo && l.i[i].opcode<= hi)
-			range_s.i[j++] = l.i[i];
-
-	return aos_set_realloc(&range_s, j);
-}
-
-/*
- * Construct a subset from 'l' where the instruction is 'safe'
- */
-i386_iset aos_set_safe(i386_iset l)
-{
-	unsigned int i, j;
-	i386_iset safe_s;
-
-	safe_s = aos_set_alloc(l.s);
-
-	for(i = j = 0; i < l.s; i++)
-		if(SAFE(l.i[i]))
-			safe_s.i[j++] = l.i[i];
-
-	return aos_set_realloc(&safe_s, j);
-}
-
-/*
- * Construct a subset from 'l' where the instruction is 'unsafe'
- */
-i386_iset aos_set_unsafe(i386_iset l)
-{
-	unsigned int i, j;
-	i386_iset safe_s;
-
-	safe_s = aos_set_alloc(l.s);
-
-	for(i = j = 0; i < l.s; i++)
-		if(UNSAFE(l.i[i]))
-			safe_s.i[j++] = l.i[i];
-
-        return aos_set_realloc(&safe_s, j);
-}
-
-/*
- * Construct a superset of 'l' with addition of 'instr'
- */
-i386_iset aos_set_add(i386_iset l, i386_instruction_t instr)
-{
-	unsigned int i;
-	i386_iset add_s;
-
-	add_s = aos_set_alloc(l.s + sizeof(i386_instruction_t));
-
-	for(i = 0; i < l.s; i++)
-		add_s.i[i] = l.i[i];
-	add_s.i[i] = instr;
-	
-	return add_s;
-}
-
-/*
- * Construct a subset of 'set1' without the any of the elements in 'set2'
- */
-i386_iset aos_set_subtract(i386_iset set1, i386_iset set2)
-{
-	int in_set = 0;
-	unsigned int i, j, k;
-	i386_iset result_s;
-
-	result_s = aos_set_alloc(set1.s);
-	
-	for(i = k = 0; i < set2.s; i++) {
-		for(j = 0; j < set1.s; j++) {
-			if(set1.i[i].opcode == set2.i[j].opcode) {
-				in_set = 1;
+	for (i = k = 0; i < set1->size; i++) {
+		for (j = 0; j < set2->size; j++) {
+			if (set1->data[i].opcode == set2->data[j].opcode)
 				break;
-			}
 		}
-		if(!in_set)
-			result_s.i[k++] = set1.i[i];
+
+		if (j == set2->size)
+			result->data[k++] = set1->data[i];
 	}
-	aos_set_realloc(&result_s, k);
 
-	return result_s;
+	return __aosc_set_resize(result, k);
 }
 
-/*
- * Print the contents of set 'l'
- */
-void aos_set_print(i386_iset l)
+struct x86_instruction_set *
+__aosc_set_init(struct x86_instruction_set *set, size_t size)
 {
-	unsigned int i;
+	/* On multiplication overflow, return NULL. */
+	if (size > SIZE_MAX / sizeof(struct x86_instruction))
+		return NULL;
 
-	for(i = 0; i < l.s; i++) {
-		printf("Entry %u\n", i);
-		printf("============================\n");
-		printf("OPCODE: %.2x\n", l.i[i].opcode);
-		printf("SAFE: %s\n", SAFE(l.i[i]) ? "true" : "false");
-		printf("SIZE: %u\n\n", l.i[i].size);
-	}
+	set->size = size;
+	set->data = xmalloc(size * sizeof(struct x86_instruction));
+	return set;
 }
 
-/*
- * Allocate a instruction set of size 'size'
- */
-inline i386_iset aos_set_alloc(size_t size)
+static void __aosc_set_destroy(struct x86_instruction_set *set)
 {
-	i386_iset l;
-
-	l.s = size;
-	size *= sizeof(i386_instruction_t);
-	l.i = (i386_instruction_t *)xmalloc(size);
-	return l;
+	free(set->data);
 }
 
-inline i386_iset aos_set_realloc(i386_iset *i, size_t s)
+static struct x86_instruction_set *
+__aosc_set_resize(struct x86_instruction_set *set, size_t size)
 {
-	i->s = s;
-	s *= sizeof(i386_instruction_t);
-	i->i = (i386_instruction_t *)xrealloc(i->i, s);
+	/* On multiplication overflow, return NULL. */
+	if (size > SIZE_MAX / sizeof(struct x86_instruction))
+		return NULL;
 
-	return *i;
-}
-
-inline void aos_set_free(i386_iset l)
-{
-	free(l.i);
+	set->size = size;
+	set->data = xrealloc(set->data,
+	                     size * sizeof(struct x86_instruction));
+	return set;
 }
