@@ -96,13 +96,18 @@ int main(int argc, char **argv)
 #if defined(__i386__)
 	ascii_code = aosc_encode_32(shellcode, sizeof(shellcode) - 1, (uint32_t)address + foo, numnops);
 #elif defined(__x86_64__)
-	ascii_code = aosc_encode_64(shellcode64, shellcode64_len, (uint64_t)address + foo, 0);
+	ascii_code = aosc_encode_64(shellcode64, shellcode64_len, (uint64_t)address, 0);
 #endif
 
 	printf("Executing shellcode:\n\n");
 	printf("%s\n", ascii_code);
+#if defined(__i386__)
 	printf("\nReturn address: %p - Encoded return address: %p\n",
 					 address + bar, address + foo);
+#elif defined(__x86_64__)
+	printf("\nReturn address: %p - Encoded return address: %p\n",
+					 address, address);
+#endif
 	fflush(stdout);
 
 	memcpy(address, ascii_code, strlen(ascii_code));
