@@ -101,7 +101,7 @@ string_insert(struct string *string, unsigned int index,
 {
 	unsigned long i;
 
-	if ( vector_char_create_gap(&string->data, index, len) == NULL )
+	if (vector_char_create_gap(&string->data, index, len) == NULL)
 		return NULL;
 
 	for (i = index; i < index + len; i++)
@@ -131,7 +131,7 @@ string_chomp(struct string *string)
 	if (len == 0)
 		return string;
 
-	if ( vector_char_get_element(&string->data, len - 1) == '\n' ) {
+	if (vector_char_get_element(&string->data, len - 1) == '\n') {
 		if (len > 1 && 
 		    vector_char_get_element(&string->data, len - 2) == '\r') {
 			string->data.end -= 2;
