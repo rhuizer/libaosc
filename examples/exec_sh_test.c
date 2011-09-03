@@ -47,7 +47,9 @@ static void usage(const char *progname)
 
 int main(int argc, char **argv)
 {
+#if defined(__i386__)
 	unsigned int foo, bar, numnops;
+#endif
 	int mode = MODE_ENCODE;
 	char *ascii_code;
 	void *address;
@@ -85,6 +87,7 @@ int main(int argc, char **argv)
 		exit(EXIT_SUCCESS);
 	}
 
+#if defined(__i386__)
 	rand_init();
 	numnops = rand_uint32_range(0, 1000);
 	foo = rand_uint32_range(0, numnops);
@@ -93,8 +96,7 @@ int main(int argc, char **argv)
 	/* aos_encode() the shellcode code, with a return address of
 	 * 'address' and use NUMNOPS nops
 	 */
-#if defined(__i386__)
-	ascii_code = aosc_encode_32(shellcode, sizeof(shellcode) - 1, (uint32_t)address + foo, numnops);
+	ascii_code = aosc_encode_32(shellcode32, sizeof(shellcode32) - 1, (uint32_t)address + foo, numnops);
 #elif defined(__x86_64__)
 	ascii_code = aosc_encode_64(shellcode64, shellcode64_len, (uint64_t)address, 0);
 #endif
