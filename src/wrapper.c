@@ -24,6 +24,7 @@
 #include <unistd.h>
 #include <stdarg.h>
 #include <errno.h>
+#include "config.h"
 
 #ifdef WRAPPER_NETINET
 #include <netinet/in.h>
@@ -67,7 +68,9 @@ void *xmalloc(size_t size)
 	while ( (ret = malloc(size)) == NULL && i != 6) {
 		warning("wrapper.c: xmalloc() failed to allocate."
 			"Sleeping %u seconds.\n", stime);
+#ifdef HAVE_SLEEP
 		sleep(stime);
+#endif
 		stime *= 2, i++;
 	}
 
@@ -92,7 +95,9 @@ void *xrealloc(void *ptr, size_t size)
 	while ( (ret = realloc(ptr, size)) == NULL && i != 6) {
 		warning("wrapper.c: xrealloc() failed to allocate."
 			"Sleeping %u seconds.\n", stime);
+#ifdef HAVE_SLEEP
 		sleep(stime);
+#endif
 		stime *= 2, i++;
 	}
 
