@@ -43,7 +43,8 @@ struct x86_instruction_set {
 	size_t			size;
 };
 
-void aos_nop_engine_init(void);
+void aosc_nop_engine_init(void);
+unsigned char aosc_random_post_nop(void);
 unsigned char stateful_random_safe_opcode(unsigned int);
 
 #ifdef __cplusplus

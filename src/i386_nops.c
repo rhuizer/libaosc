@@ -31,7 +31,6 @@
  * aosc_random
  *
  */
-
 static void __aosc_set_destroy(struct x86_instruction_set *set);
 static struct x86_instruction_set *__aosc_set_init(
 	struct x86_instruction_set *set, size_t size);
@@ -44,6 +43,7 @@ static struct x86_instruction_set *__aosc_set_subtract(
 static struct x86_instruction_set *
 __aosc_set_resize(struct x86_instruction_set *set, size_t size);
 
+static int __can_use_unsafe_instr(struct x86_instruction *, size_t);
 
 inline struct x86_instruction *
 __aosc_random_nop(struct x86_instruction_set *set);
@@ -135,7 +135,7 @@ void aosc_nop_engine_init(void)
  * of multi byte instructions (since we avoid opcode misalignment issues)
  * and the use of the addr16 and data16 opcodes.
  */
-unsigned char aos_random_post_nop(void)
+unsigned char aosc_random_post_nop(void)
 {
 	struct x86_instruction *instr;
 	struct x86_instruction_set postnop_set;
@@ -167,7 +167,7 @@ unsigned char stateful_random_safe_opcode(unsigned int nops)
 
 	do {
 		i = &x86_set.data[rand_uint32_range(0, x86_set.size - 1)];
-	} while(space < i->size || (IS_UNSAFE(i) && !can_use_unsafe_instr(i, nops)));
+	} while(space < i->size || (IS_UNSAFE(i) && !__can_use_unsafe_instr(i, nops)));
 	curlen++;
 
 	/* Track the last instruction handled by the engine. */
@@ -181,8 +181,8 @@ unsigned char stateful_random_safe_opcode(unsigned int nops)
  *       improve randomness, but this will need additional checks.
  *       Should be possible with a backtracking algorithm
  */
-int
-can_use_unsafe_instr(struct x86_instruction *instr, size_t noplen)
+static int
+__can_use_unsafe_instr(struct x86_instruction *instr, size_t noplen)
 {
 	struct x86_instruction_set foo, bar;
 	size_t left = noplen - curlen;

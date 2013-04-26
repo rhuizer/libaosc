@@ -193,7 +193,7 @@ __aosc_encode_i386(struct string *dest, void *src, size_t n,
 	/* Adding post-nopping with random i386 ASCII only (n)opcodes. */
 	aosc_nop_engine_init();
 	for(i = 0; i < nops; i++)
-		string_char_append(dest, aos_random_post_nop(), 1);
+		string_char_append(dest, aosc_random_post_nop(), 1);
 
 	/* 0-terminate the string before returning it to the user. */
 	string_char_append(dest, 0, 1);
@@ -257,7 +257,7 @@ __aosc_encode_x86_64(struct string *dest, void *src, size_t n,
 	/* Adding post-nopping with random i386 ASCII only (n)opcodes. */
 	aosc_nop_engine_init();
 	for(i = 0; i < nops; i++)
-		string_char_append(dest, aos_random_post_nop(), 1);
+		string_char_append(dest, aosc_random_post_nop(), 1);
 
 	/* 0-terminate the string before returning it to the user. */
 	string_char_append(dest, 0, 1);
